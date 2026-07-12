@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Decorador de Interiores AR - WebXR</title>
+    <!-- Tailwind CSS para el diseño de UI de alto nivel -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para iconos modernos de control -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Fuente Inter de Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Estilos para ocultar barras de scroll y mejorar inmersión */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Glassmorphism premium para controles */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-btn {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-btn:active, .glass-btn.active {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: scale(0.95);
+        }
+        /* Animación del indicador reticular de AR */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.5; }
+        }
+        .animate-pulse-ring {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 overflow-hidden h-screen w-screen select-none">
+
+    
+    <!-- Contenedor principal de la experiencia 3D/AR -->
+    <div id="canvas-container" class="absolute inset-0 w-full h-full z-0"></div>
+
+    <!-- UI Overlay para el modo AR y modo Escritorio -->
+    <div id="ui-container" class="absolute inset-0 flex flex-col justify-between pointer-events-none z-10 p-4 md:p-6">
+        
+        <!-- CABECERA: Estado de conexión y título de la App -->
+        <header class="w-full flex justify-between items-start pointer-events-auto">
+            <div class="glass-panel p-3 rounded-2xl flex items-center space-x-3 shadow-2xl">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-couch"></i>
+                </div>
+                <div>
+                    <h1 class="text-sm font-bold tracking-tight text-white leading-tight">DecoXR Studio</h1>
+                    <span id="xr-status" class="text-[10px] text-amber-400 font-semibold flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Comprobando WebXR...
+                    </span>
+                </div>
+            </div>
+
+            <!-- Botón de Inicio AR principal (Se activará dinámicamente) -->
+            <button id="btn-ar-trigger" class="glass-btn px-5 py-3 rounded-2xl flex items-center gap-2 font-bold text-sm tracking-wide shadow-xl text-slate-400 cursor-not-allowed" disabled>
+                <i class="fa-solid fa-cube"></i> AR NO SOPORTADO
+            </button>
+        </header>
+
+        
+        <!-- Centro: Retícula / Instrucciones dinámicas -->
+        <div id="instruction-overlay" class="self-center glass-panel px-6 py-3 rounded-full text-xs font-medium text-center shadow-lg transform translate-y-12 transition-all duration-300 pointer-events-auto">
+            <i class="fa-solid fa-circle-info text-indigo-400 mr-1.5"></i>
+            <span id="instruction-text">Iniciando motor de renderizado 3D...</span>
+        </div>
+
+        <!-- NOTIFICACIONES TOAST -->
+        <div id="toast-container" class="absolute top-20 right-4 left-4 md:left-auto md:w-80 flex flex-col gap-2 pointer-events-none z-50"></div>
+
+
+        <!-- PIE DE INTERFAZ: Catálogo e interacción con objetos seleccionados -->
+        <footer class="w-full flex flex-col gap-4 pointer-events-auto">
+            
+            <!-- PANEL DE CONTROL DEL OBJETO SELECCIONADO (Se activa al tocar un mueble) -->
+            <div id="object-control-panel" class="glass-panel p-3 rounded-2xl flex items-center justify-between shadow-2xl max-w-md mx-auto w-full transform translate-y-32 opacity-0 transition-all duration-300">
+                <span class="text-xs font-semibold text-indigo-300 px-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-pencil"></i> <span id="selected-item-name">Ninguno</span>
+                </span>
+                
+                <div class="flex items-center gap-1">
+                    <!-- Rotar izquierda -->
+                    <button id="btn-rotate-left" class="glass-btn w-10 h-10 rounded-xl flex items-center justify-center text-white" title="Rotar Izquierda">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+                    <!-- Rotar derecha -->
+                    <button id="btn-rotate-right" class="glass-btn w-10 h-10 rounded-xl flex items-center justify-center text-white" title="Rotar Derecha">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                    <!-- Escalar más grande -->
+                    <button id="btn-scale-up" class="glass-btn w-10 h-10 rounded-xl flex items-center justify-center text-white" title="Aumentar Tamaño">
+                        <i class="fa-solid fa-maximize"></i>
+                    </button>
+                    <!-- Escalar más pequeño -->
+                    <button id="btn-scale-down" class="glass-btn w-10 h-10 rounded-xl flex items-center justify-center text-white" title="Disminuir Tamaño">
+                        <i class="fa-solid fa-minimize"></i>
+                    </button>
+                    <!-- Eliminar Objeto -->
+                    <button id="btn-delete-object" class="w-10 h-10 bg-red-600/30 border border-red-500/50 hover:bg-red-600 rounded-xl flex items-center justify-center text-red-200" title="Eliminar Mueble">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- FILA INFERIOR: Botón de reset y el selector de catálogo de muebles -->
+            <div class="flex items-end gap-3">
+                <!-- Botón Reiniciar Escena -->
+                <button id="btn-reset-scene" class="glass-panel w-14 h-14 rounded-2xl flex items-center justify-center text-red-400 hover:text-red-300 shadow-2xl transition-all" title="Reiniciar Escena">
+                    <i class="fa-solid fa-trash-arrow-up text-lg"></i>
+                </button>
+
+                <!-- Carrusel horizontal de muebles de catálogo -->
+                <div class="flex-1 glass-panel p-3 rounded-3xl overflow-hidden shadow-2xl">
+                    <h2 class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 px-1">Mobiliario</h2>
+                    <div id="catalog-carousel" class="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                        <!-- Generado dinámicamente mediante JS -->
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+
+    <!-- Sistema de carga modular ES Modules usando Importmaps -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+        // Base de Datos Simulado del Catálogo de Modelos (para fácil ampliación)
+        const CATALOG = [
+            {
+                id: 'sofa',
+                name: 'Sofá Nordico',
+                path: '/models/sofa.glb',
+                icon: 'fa-couch',
+                color: '#4f46e5', // Color para el fallback procedural
+                scale: 0.9,
+                description: 'Diseño escandinavo de tres plazas.'
+            },
+            {
+                id: 'mesa',
+                name: 'Mesa de Centro',
+                path: '/models/mesa.glb',
+                icon: 'fa-table',
+                color: '#b45309',
+                scale: 0.75,
+                description: 'Madera maciza con acabados de metal.'
+            },
+            {
+                id: 'planta',
+                name: 'Planta de Interior',
+                path: '/models/planta.glb',
+                icon: 'fa-leaf',
+                color: '#15803d',
+                scale: 0.6,
+                description: 'Maceta decorativa de cerámica blanca.'
+            },
+            {
+                id: 'cuadro',
+                name: 'Cuadro Modernista',
+                path: '/models/cuadro.glb',
+                icon: 'fa-image',
+                color: '#be185d',
+                scale: 1.0,
+                description: 'Arte abstracto contemporáneo.'
+            }
+        ];
+
+
+        class AssetLoader {
+            constructor() {
+                this.cache = new Map();
+                
+                // Inicialización de cargadores estándar de Three.js
+                this.dracoLoader = new DRACOLoader();
+                // Usando CDN rápido para decodificar Draco
+                this.dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+                
+                this.gltfLoader = new GLTFLoader();
+                this.gltfLoader.setDRACOLoader(this.dracoLoader);
+            }
+
+            /**
+             * Carga un modelo 3D GLB con fallback procedural en caso de error o ausencia de archivo en servidor
+             */
+            async loadModel(item) {
+                if (this.cache.has(item.id)) {
+                    return this.cache.get(item.id).clone();
+                }
+
+                return new Promise((resolve) => {
+                    this.gltfLoader.load(
+                        item.path,
+                        (gltf) => {
+                            const model = gltf.scene;
+                            this._optimizeModel(model);
+                            this.cache.set(item.id, model);
+                            resolve(model.clone());
+                        },
+                        (xhr) => {
+                            // Progreso de carga
+                            const percent = Math.round((xhr.loaded / xhr.total) * 100);
+                            if (!isNaN(percent)) {
+                                UIManager.updateInstructions(`Descargando ${item.name}: ${percent}%`);
+                            }
+                        },
+                        (error) => {
+                            console.warn(`[Loader] No se pudo cargar el archivo GLB físico para "${item.name}". Generando gemelo procedural de alta definición.`);
+                            // Fallback de contingencia (Procedural / Sin dependencias externas rotas)
+                            const fallbackMesh = this._createProceduralFallback(item);
+                            this.cache.set(item.id, fallbackMesh);
+                            resolve(fallbackMesh.clone());
+                        }
+                    );
+                });
+            }
+
+            /**
+             * Optimiza materiales del modelo GLTF cargado para dispositivos móviles
+             */
+            _optimizeModel(group) {
+                group.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        if (child.material) {
+                            child.material.precision = 'mediump';
+                            // Evitar texturas excesivamente pesadas o cálculos complejos
+                        }
+                    }
+                });
+            }
+
+            /**
+             * Genera modelos 3D procedurales sumamente detallados si no se encuentra el GLB.
+             * Esto asegura que el cliente pueda jugar e interactuar inmediatamente en el navegador.
+             */
+            _createProceduralFallback(item) {
+                const group = new THREE.Group();
+                group.name = `Procedural_${item.id}`;
+
+                const shadowMat = new THREE.MeshStandardMaterial({
+                    color: item.color,
+                    roughness: 0.5,
+                    metalness: 0.2
+                });
+
+                switch (item.id) {
+                    case 'sofa':
+                        // Base del Sofá
+                        const base = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.2, 0.8), shadowMat);
+                        base.position.y = 0.15;
+                        base.castShadow = base.receiveShadow = true;
+                        group.add(base);
+
+                        // Respaldo
+                        const back = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.6, 0.2), shadowMat);
+                        back.position.set(0, 0.5, -0.3);
+                        back.castShadow = back.receiveShadow = true;
+                        group.add(back);
+
+                        // Reposabrazos Izquierdo
+                        const armL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.4, 0.8), shadowMat);
+                        armL.position.set(-0.8, 0.4, 0);
+                        armL.castShadow = armL.receiveShadow = true;
+                        group.add(armL);
+
+                        // Reposabrazos Derecho
+                        const armR = armL.clone();
+                        armR.position.x = 0.8;
+                        group.add(armR);
+
+                        // Cojines
+                        const seatMat = new THREE.MeshStandardMaterial({ color: '#f3f4f6', roughness: 0.7 });
+                        const cushion1 = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.15, 0.6), seatMat);
+                        cushion1.position.set(-0.35, 0.25, 0.05);
+                        cushion1.castShadow = cushion1.receiveShadow = true;
+                        group.add(cushion1);
+
+                        const cushion2 = cushion1.clone();
+                        cushion2.position.x = 0.35;
+                        group.add(cushion2);
+                        break;
+
+                    case 'mesa':
+                        const woodMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.4 });
+                        const metalMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.2, metalness: 0.8 });
+
+                        // Tablero superior
+                        const top = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.06, 0.7), woodMat);
+                        top.position.y = 0.45;
+                        top.castShadow = top.receiveShadow = true;
+                        group.add(top);
+
+                        // Patas metálicas minimalistas
+                        const legG = new THREE.CylinderGeometry(0.025, 0.025, 0.45);
+                        for (let x of [-0.55, 0.55]) {
+                            for (let z of [-0.3, 0.3]) {
+                                const leg = new THREE.Mesh(legG, metalMat);
+                                leg.position.set(x, 0.225, z);
+                                leg.castShadow = true;
+                                group.add(leg);
+                            }
+                        }
+                        break;
+
+                    case 'planta':
+                        // Maceta de arcilla
+                        const potMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.6 });
+                        const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.13, 0.3, 16), potMat);
+                        pot.position.y = 0.15;
+                        pot.castShadow = pot.receiveShadow = true;
+                        group.add(pot);
+
+                        // Tierra
+                        const soil = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.05, 16), new THREE.MeshStandardMaterial({ color: '#451a03' }));
+                        soil.position.y = 0.29;
+                        group.add(soil);
+
+                        // Tallos y hojas
+                        const leafMat = new THREE.MeshStandardMaterial({ color: '#166534', roughness: 0.8 });
+                        const leavesGroup = new THREE.Group();
+                        leavesGroup.position.y = 0.3;
+                        
+                        const leafGeom = new THREE.ConeGeometry(0.12, 0.5, 4);
+                        for (let i = 0; i < 6; i++) {
+                            const leaf = new THREE.Mesh(leafGeom, leafMat);
+                            leaf.rotation.x = 0.4 + Math.random() * 0.4;
+                            leaf.rotation.y = (i * Math.PI) / 3;
+                            leaf.translateZ(0.1);
+                            leaf.translateY(0.15);
+                            leaf.castShadow = true;
+                            leavesGroup.add(leaf);
+                        }
+                        group.add(leavesGroup);
+                        break;
+
+                    case 'cuadro':
+                        // Marco elegante
+                        const frameMat = new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.1, metalness: 0.9 });
+                        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.2, 0.05), frameMat);
+                        frame.position.y = 0.8;
+                        frame.castShadow = true;
+                        group.add(frame);
+
+                        // Canvas pictórico
+                        const artMat = new THREE.MeshStandardMaterial({ color: '#312e81', roughness: 0.9 });
+                        const canvas = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.1, 0.06), artMat);
+                        canvas.position.set(0, 0.8, 0.01);
+                        group.add(canvas);
+                        break;
+                }
+
+                // Normalización de escala general de diseño
+                const finalScale = item.scale || 1.0;
+                group.scale.set(finalScale, finalScale, finalScale);
+
+                return group;
+            }
+        }
+
+
+        class SceneManager {
+            constructor(containerId) {
+                this.container = document.getElementById(containerId);
+                
+                // Creación de la Escena 3D
+                this.scene = new THREE.Scene();
+                this.scene.fog = new THREE.FogExp2(0x0f172a, 0.05);
+
+                // Configuración de la Cámara
+                this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 20);
+                this.camera.position.set(0, 1.6, 2.5); // Posicionamiento a altura promedio de ojos humanos
+
+                // Configuración de Renderizado Adaptativo
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                this.renderer.xr.enabled = true; // Activa ciclo WebXR nativo
+                this.container.appendChild(this.renderer.domElement);
+
+                // Configuración de Controles Orbit (Para simulación rápida en Escritorio)
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.maxPolarAngle = Math.PI / 2 - 0.01; // Evita hundimiento por debajo del suelo
+                this.controls.minDistance = 0.5;
+                this.controls.maxDistance = 8;
+
+                // Luces del entorno
+                this.setupLighting();
+
+                // Suelo de demostración física para el Modo Escritorio
+                this.setupGridFloor();
+
+                // Gestión del cambio de tamaño del visor
+                window.addEventListener('resize', this.onWindowResize.bind(this));
+            }
+
+            setupLighting() {
+                // Luz ambiental suave para no aplanar geometrías
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+                this.scene.add(ambientLight);
+
+                // Luz Direccional que actúa como foco principal / sol para sombras nítidas
+                const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+                sunLight.position.set(3, 8, 4);
+                sunLight.castShadow = true;
+                sunLight.shadow.mapSize.width = 1024;
+                sunLight.shadow.mapSize.height = 1024;
+                sunLight.shadow.bias = -0.0005;
+                this.scene.add(sunLight);
+
+                // Luz secundaria de rebote
+                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x0f172a, 0.4);
+                this.scene.add(hemiLight);
+            }
+
+            setupGridFloor() {
+                // El suelo se oculta automáticamente en AR móvil, pero ayuda a ubicar objetos en escritorio
+                this.floorGroup = new THREE.Group();
+                this.floorGroup.name = "DesktopFloor";
+
+                const grid = new THREE.GridHelper(10, 20, 0x4f46e5, 0x1e293b);
+                grid.position.y = -0.001;
+                this.floorGroup.add(grid);
+
+                const floorGeo = new THREE.PlaneGeometry(10, 10);
+                const floorMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x0b0f19, 
+                    roughness: 0.9,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const floorPlane = new THREE.Mesh(floorGeo, floorMat);
+                floorPlane.rotation.x = -Math.PI / 2;
+                floorPlane.receiveShadow = true;
+                this.floorGroup.add(floorPlane);
+
+                this.scene.add(this.floorGroup);
+            }
+
+            hideFloorForAR() {
+                if (this.floorGroup) this.floorGroup.visible = false;
+            }
+
+            showFloorForDesktop() {
+                if (this.floorGroup) this.floorGroup.visible = true;
+            }
+
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+
+
+        class ARSessionManager {
+            constructor(sceneManager, interactionManager) {
+                this.sm = sceneManager;
+                this.im = interactionManager;
+                this.xrSession = null;
+                this.hitTestSource = null;
+                this.hitTestSourceRequested = false;
+                this.reticle = null;
+
+                this.createReticle();
+                this.checkWebXRAvailability();
+            }
+
+            /**
+             * Comprobación asíncrona de soporte WebXR e inicialización de Eventos de Botón
+             */
+            async checkWebXRAvailability() {
+                const xrStatusText = document.getElementById('xr-status');
+                const btnAr = document.getElementById('btn-ar-trigger');
+
+                if ('xr' in navigator) {
+                    try {
+                        const supported = await navigator.xr.isSessionSupported('immersive-ar');
+                        if (supported) {
+                            xrStatusText.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> AR Móvil Disponible`;
+                            xrStatusText.className = "text-[10px] text-emerald-400 font-semibold flex items-center gap-1";
+                            
+                            btnAr.disabled = false;
+                            btnAr.innerHTML = `<i class="fa-solid fa-cube text-indigo-400 text-sm"></i> INICIAR REALIDAD AUMENTADA`;
+                            btnAr.className = "glass-btn px-5 py-3 rounded-2xl flex items-center gap-2 font-bold text-sm tracking-wide shadow-xl text-white hover:border-indigo-500 hover:shadow-indigo-500/20 pointer-events-auto bg-gradient-to-r from-indigo-900/40 to-slate-900/40 cursor-pointer";
+                            btnAr.addEventListener('click', () => this.toggleARSession());
+                        } else {
+                            this._markARUnsupported("Incompatible con Immersive-AR");
+                        }
+                    } catch (err) {
+                        this._markARUnsupported("Dispositivo incompatible");
+                    }
+                } else {
+                    this._markARUnsupported("WebXR no soportado en este explorador");
+                }
+            }
+
+            _markARUnsupported(reason) {
+                const xrStatusText = document.getElementById('xr-status');
+                const btnAr = document.getElementById('btn-ar-trigger');
+                xrStatusText.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span> Modo Escritorio`;
+                xrStatusText.className = "text-[10px] text-rose-400 font-semibold flex items-center gap-1";
+                btnAr.disabled = true;
+                btnAr.innerHTML = `<i class="fa-solid fa-desktop text-slate-500"></i> SIMULACIÓN ACTIVA`;
+                btnAr.className = "glass-panel px-5 py-3 rounded-2xl flex items-center gap-2 font-bold text-sm tracking-wide text-slate-500 cursor-default opacity-80";
+                
+                UIManager.showToast("Modo simulación en escritorio habilitado", "info");
+                UIManager.updateInstructions("Usa Click Izquierdo para arrastrar, Derecho para girar ó Toca un mueble");
+            }
+
+            createReticle() {
+                // El marcador visual que indica la superficie detectada por WebXR Hit Test
+                this.reticle = new THREE.Group();
+                this.reticle.name = "AR_Reticle";
+                this.reticle.visible = false;
+
+                // Círculo exterior táctil
+                const ringGeo = new THREE.RingGeometry(0.12, 0.15, 32);
+                ringGeo.rotateX(-Math.PI / 2);
+                const ringMat = new THREE.MeshBasicMaterial({ color: 0x6366f1, side: THREE.DoubleSide });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                this.reticle.add(ring);
+
+                // Punto centralizador
+                const centerGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.01, 16);
+                const centerMat = new THREE.MeshBasicMaterial({ color: 0x4f46e5 });
+                const center = new THREE.Mesh(centerGeo, centerMat);
+                this.reticle.add(center);
+
+                this.sm.scene.add(this.reticle);
+            }
+
+            /**
+             * Alterna el estado de la sesión de WebXR Realidad Aumentada
+             */
+            async toggleARSession() {
+                if (this.xrSession === null) {
+                    // Configuración opcional y mandatoria de WebXR
+                    const sessionInit = {
+                        requiredFeatures: ['hit-test'],
+                        optionalFeatures: ['dom-overlay'],
+                        domOverlay: { root: document.getElementById('ui-container') }
+                    };
+
+                    try {
+                        const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
+                        this.onSessionStarted(session);
+                    } catch (err) {
+                        UIManager.showToast("No se pudo iniciar AR móvil: " + err.message, "error");
+                    }
+                } else {
+                    this.xrSession.end();
+                }
+            }
+
+            onSessionStarted(session) {
+                this.xrSession = session;
+                this.sm.hideFloorForAR();
+                this.reticle.visible = false;
+
+                document.getElementById('btn-ar-trigger').innerHTML = `<i class="fa-solid fa-xmark text-red-400"></i> SALIR AR`;
+                UIManager.showToast("Sesión de Realidad Aumentada Activa", "success");
+                UIManager.updateInstructions("Mueve el móvil para detectar superficies...");
+
+                // Configuración de renderizado WebXR
+                this.sm.renderer.xr.setReferenceSpaceType('local');
+                this.sm.renderer.xr.setSession(session);
+
+                session.addEventListener('end', this.onSessionEnded.bind(this));
+                
+                // Evento principal para plantar un objeto al tocar la pantalla de AR
+                session.addEventListener('select', () => {
+                    if (this.reticle.visible) {
+                        this.im.placeCurrentObject(this.reticle.position, this.reticle.quaternion);
+                    }
+                });
+
+                this.hitTestSourceRequested = false;
+                this.hitTestSource = null;
+            }
+
+            onSessionEnded() {
+                this.xrSession = null;
+                this.sm.showFloorForDesktop();
+                this.reticle.visible = false;
+                this.hitTestSourceRequested = false;
+                this.hitTestSource = null;
+
+                document.getElementById('btn-ar-trigger').innerHTML = `<i class="fa-solid fa-cube text-indigo-400"></i> INICIAR REALIDAD AUMENTADA`;
+                UIManager.showToast("Sesión AR finalizada", "info");
+                UIManager.updateInstructions("Usa el panel inferior para decorar tu espacio virtual.");
+            }
+
+            /**
+             * Actualiza el sistema de colisiones e Hit-Test en el bucle de renderizado
+             */
+            updateHitTest(frame) {
+                if (!this.xrSession) return;
+
+                const referenceSpace = this.sm.renderer.xr.getReferenceSpace();
+                const session = frame.session;
+
+                if (!this.hitTestSourceRequested) {
+                    session.requestReferenceSpace('viewer').then((viewerSpace) => {
+                        session.requestHitTestSource({ space: viewerSpace }).then((source) => {
+                            this.hitTestSource = source;
+                        });
+                    });
+                    session.addEventListener('end', () => {
+                        this.hitTestSourceRequested = false;
+                        this.hitTestSource = null;
+                    });
+                    this.hitTestSourceRequested = true;
+                }
+
+                if (this.hitTestSource) {
+                    const hitTestResults = frame.getHitTestResults(this.hitTestSource);
+                    if (hitTestResults.length > 0) {
+                        const hit = hitTestResults[0];
+                        const pose = hit.getPose(referenceSpace);
+
+                        this.reticle.visible = true;
+                        this.reticle.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
+                        this.reticle.updateMatrixWorld(true);
+                        
+                        UIManager.updateInstructions("Superficie Detectada. Toca la pantalla para colocar.");
+                    } else {
+                        this.reticle.visible = false;
+                    }
+                }
+            }
+        }
+
+
+        class InteractionManager {
+            constructor(sceneManager, assetLoader) {
+                this.sm = sceneManager;
+                this.loader = assetLoader;
+                
+                this.selectedItemConfig = CATALOG[0]; // Modelo por defecto en el menú
+                this.placedObjects = [];
+                this.activeObject = null;
+
+                // Sistema de Raycasting para selección por toque en Escritorio y AR
+                this.raycaster = new THREE.Raycaster();
+                this.mouse = new THREE.Vector2();
+
+                this.setupInputListeners();
+                this.createSelectionIndicator();
+            }
+
+            createSelectionIndicator() {
+                // Anillo de Selección debajo del objeto activo
+                const circleGeo = new THREE.RingGeometry(0.4, 0.45, 32);
+                circleGeo.rotateX(-Math.PI / 2);
+                const circleMat = new THREE.MeshBasicMaterial({ 
+                    color: 0x10b981, 
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                this.selectionRing = new THREE.Mesh(circleGeo, circleMat);
+                this.selectionRing.visible = false;
+                this.sm.scene.add(this.selectionRing);
+            }
+
+            setSelectedItem(itemId) {
+                const item = CATALOG.find(i => i.id === itemId);
+                if (item) {
+                    this.selectedItemConfig = item;
+                    UIManager.showToast(`Seleccionado: ${item.name}`, "info");
+                }
+            }
+
+            /**
+             * Coloca el objeto actual en la posición indicada (coordenadas de la retícula)
+             */
+            async placeCurrentObject(position, quaternion = new THREE.Quaternion()) {
+                UIManager.updateInstructions(`Colocando ${this.selectedItemConfig.name}...`);
+                
+                try {
+                    // Evitar superposición accidental muy drástica comprobando distancias
+                    for (let existing of this.placedObjects) {
+                        const dist = existing.position.distanceTo(position);
+                        if (dist < 0.35) {
+                            UIManager.showToast("¡Espacio demasiado estrecho para otro mueble!", "warning");
+                            return;
+                        }
+                    }
+
+                    const model = await this.loader.loadModel(this.selectedItemConfig);
+                    model.position.copy(position);
+                    model.quaternion.copy(quaternion);
+                    
+                    // Rotar ligeramente al azar para añadir dinamismo natural al ser plantado
+                    model.rotateY(Math.random() * 0.4 - 0.2);
+
+                    this.sm.scene.add(model);
+                    this.placedObjects.push(model);
+
+                    // Auto-seleccionar al ser colocado
+                    this.selectObject(model);
+                    UIManager.showToast(`${this.selectedItemConfig.name} colocado con éxito`, "success");
+                    UIManager.updateInstructions("¡Mueble colocado! Selecciónalo para rotar o ajustar escala.");
+                } catch (e) {
+                    console.error(e);
+                    UIManager.showToast("Error crítico al colocar objeto", "error");
+                }
+            }
+
+            /**
+             * Gestiona la selección táctil o de puntero de un objeto existente
+             */
+            selectObject(object) {
+                // Si ya estaba activo, no redundar
+                if (this.activeObject === object) return;
+
+                this.activeObject = object;
+
+                if (object) {
+                    this.selectionRing.position.copy(object.position);
+                    this.selectionRing.position.y += 0.01; // Ligera holgura para evitar Z-fighting con el suelo
+                    
+                    // Ajustar tamaño del anillo según la escala del objeto colocado
+                    const bbox = new THREE.Box3().setFromObject(object);
+                    const size = bbox.getSize(new THREE.Vector3());
+                    const maxDim = Math.max(size.x, size.z);
+                    this.selectionRing.scale.setScalar(maxDim * 1.4);
+                    
+                    this.selectionRing.visible = true;
+
+                    // Mapear nombre del mueble para la UI
+                    const cleanName = object.name.replace("Procedural_", "").toUpperCase();
+                    UIManager.showObjectPanel(cleanName);
+                } else {
+                    this.selectionRing.visible = false;
+                    UIManager.hideObjectPanel();
+                }
+            }
+
+            setupInputListeners() {
+                // Eventos de puntero para seleccionar objetos en pantalla en modo Escritorio
+                this.sm.renderer.domElement.addEventListener('pointerdown', (e) => {
+                    // Si el puntero hace clic sobre controles interactivos HTML, ignorar interacción 3D
+                    if (e.target.closest('button') || e.target.closest('#catalog-carousel')) return;
+
+                    // Normalizar coordenadas del puntero
+                    this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                    this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+                    this.raycaster.setFromCamera(this.mouse, this.sm.camera);
+                    
+                    // Buscar intersecciones en los objetos colocados
+                    const intersects = this.raycaster.intersectObjects(this.placedObjects, true);
+
+                    if (intersects.length > 0) {
+                        // Encontrar el grupo raíz colocado
+                        let rootObj = intersects[0].object;
+                        while (rootObj.parent && rootObj.parent !== this.sm.scene) {
+                            rootObj = rootObj.parent;
+                        }
+                        this.selectObject(rootObj);
+                    } else {
+                        // Si no se toca un objeto y estamos en simulación de escritorio, plantar uno
+                        if (!this.sm.renderer.xr.isPresenting) {
+                            // Hit test simulado contra el suelo de simulación (Plano Y=0)
+                            const planeIntersection = [];
+                            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+                            const intersectPoint = new THREE.Vector3();
+                            if (this.raycaster.ray.intersectPlane(plane, intersectPoint)) {
+                                this.placeCurrentObject(intersectPoint);
+                            }
+                        } else {
+                            this.selectObject(null);
+                        }
+                    }
+                });
+
+                // CONTROLES DE TRANSFORMACIÓN DE LA UI ACTIVA
+                document.getElementById('btn-rotate-left').addEventListener('click', () => {
+                    if (this.activeObject) {
+                        this.activeObject.rotateY(Math.PI / 8); // 22.5 grados por pulsación
+                        UIManager.showToast("Rotado izquierda", "info");
+                    }
+                });
+
+                document.getElementById('btn-rotate-right').addEventListener('click', () => {
+                    if (this.activeObject) {
+                        this.activeObject.rotateY(-Math.PI / 8);
+                        UIManager.showToast("Rotado derecha", "info");
+                    }
+                });
+
+                document.getElementById('btn-scale-up').addEventListener('click', () => {
+                    if (this.activeObject) {
+                        this.activeObject.scale.multiplyScalar(1.1);
+                        this.selectionRing.scale.multiplyScalar(1.1);
+                        UIManager.showToast("Tamaño aumentado", "info");
+                    }
+                });
+
+                document.getElementById('btn-scale-down').addEventListener('click', () => {
+                    if (this.activeObject) {
+                        this.activeObject.scale.multiplyScalar(0.9);
+                        this.selectionRing.scale.multiplyScalar(0.9);
+                        UIManager.showToast("Tamaño disminuido", "info");
+                    }
+                });
+
+                document.getElementById('btn-delete-object').addEventListener('click', () => {
+                    if (this.activeObject) {
+                        this.sm.scene.remove(this.activeObject);
+                        this.placedObjects = this.placedObjects.filter(o => o !== this.activeObject);
+                        this.selectObject(null);
+                        UIManager.showToast("Mueble eliminado de la escena", "warning");
+                    }
+                });
+
+                document.getElementById('btn-reset-scene').addEventListener('click', () => {
+                    if (this.placedObjects.length === 0) {
+                        UIManager.showToast("No hay elementos para limpiar", "info");
+                        return;
+                    }
+                    this.placedObjects.forEach(obj => this.sm.scene.remove(obj));
+                    this.placedObjects = [];
+                    this.selectObject(null);
+                    UIManager.showToast("Espacio completamente reestablecido", "info");
+                });
+            }
+        }
+
+
+        class UIManager {
+            static init(interactionManager) {
+                this.im = interactionManager;
+                this.carousel = document.getElementById('catalog-carousel');
+                this.instrText = document.getElementById('instruction-text');
+                this.objPanel = document.getElementById('object-control-panel');
+                this.itemNameText = document.getElementById('selected-item-name');
+
+                this.buildCatalogHTML();
+            }
+
+            /**
+             * Renderiza dinámicamente el listado del carrusel de catálogo
+             */
+            static buildCatalogHTML() {
+                this.carousel.innerHTML = CATALOG.map((item, index) => {
+                    const isActive = index === 0 ? 'border-indigo-500 bg-indigo-950/40 text-indigo-400' : 'border-transparent text-slate-300';
+                    return `
+                        <div data-id="${item.id}" class="catalog-item min-w-[100px] flex-shrink-0 flex flex-col items-center justify-center p-3 rounded-2xl glass-btn border cursor-pointer ${isActive}">
+                            <i class="fa-solid ${item.icon} text-lg mb-1.5"></i>
+                            <span class="text-[10px] font-bold text-center leading-tight whitespace-nowrap">${item.name}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                // Adjunta listeners a cada elemento del catálogo
+                const items = this.carousel.querySelectorAll('.catalog-item');
+                items.forEach(el => {
+                    el.addEventListener('click', () => {
+                        items.forEach(i => i.classList.remove('border-indigo-500', 'bg-indigo-950/40', 'text-indigo-400'));
+                        el.classList.add('border-indigo-500', 'bg-indigo-950/40', 'text-indigo-400');
+                        
+                        const id = el.getAttribute('data-id');
+                        this.im.setSelectedItem(id);
+                    });
+                });
+            }
+
+            /**
+             * Actualiza el texto central de instrucciones para el usuario
+             */
+            static updateInstructions(text) {
+                if (this.instrText) {
+                    this.instrText.textContent = text;
+                }
+            }
+
+            /**
+             * Muestra el panel flotante de controles de modificación para el objeto activo
+             */
+            static showObjectPanel(name) {
+                this.itemNameText.textContent = name;
+                this.objPanel.classList.remove('translate-y-32', 'opacity-0');
+                this.objPanel.classList.add('translate-y-0', 'opacity-100');
+            }
+
+            /**
+             * Oculta el panel flotante de controles
+             */
+            static hideObjectPanel() {
+                this.objPanel.classList.add('translate-y-32', 'opacity-0');
+                this.objPanel.classList.remove('translate-y-0', 'opacity-100');
+            }
+
+            /**
+             * Dispara notificaciones rápidas tipo Toast no intrusivas
+             */
+            static showToast(message, type = 'info') {
+                const toastContainer = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                
+                let icon = 'fa-circle-info text-blue-400';
+                if (type === 'success') icon = 'fa-circle-check text-emerald-400';
+                if (type === 'warning') icon = 'fa-triangle-exclamation text-amber-500';
+                if (type === 'error') icon = 'fa-circle-xmark text-rose-500';
+
+                toast.className = 'glass-panel p-3 rounded-xl shadow-xl flex items-center space-x-2.5 pointer-events-auto transform translate-y-2 opacity-0 transition-all duration-300 border-l-4 border-l-indigo-500';
+                if (type === 'error') toast.style.borderLeftColor = '#f43f5e';
+                if (type === 'success') toast.style.borderLeftColor = '#10b981';
+                
+                toast.innerHTML = `
+                    <i class="fa-solid ${icon} text-sm"></i>
+                    <p class="text-xs font-medium text-slate-100">${message}</p>
+                `;
+
+                toastContainer.appendChild(toast);
+                
+                // Animación de entrada
+                setTimeout(() => {
+                    toast.classList.remove('translate-y-2', 'opacity-0');
+                }, 50);
+
+                // Autoeliminar a los 3.5 segundos
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'scale-95');
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 300);
+                }, 3500);
+            }
+        }
+
+
+        window.addEventListener('load', () => {
+            // Inicializar controladores modulares
+            const sceneManager = new SceneManager('canvas-container');
+            const assetLoader = new AssetLoader();
+            const interactionManager = new InteractionManager(sceneManager, assetLoader);
+            
+            // Instanciar UI
+            UIManager.init(interactionManager);
+            
+            // Inicializar motor WebXR
+            const arSessionManager = new ARSessionManager(sceneManager, interactionManager);
+
+            // Bucle principal de Renderizado optimizado para WebXR y OrbitControls
+            const animate = (timestamp, frame) => {
+                // Si la sesión WebXR está activa, actualizar hit test de la cámara móvil
+                if (frame) {
+                    arSessionManager.updateHitTest(frame);
+                }
+
+                // Actualizar amortiguación física de la cámara orbital en modo simulación
+                if (!sceneManager.renderer.xr.isPresenting) {
+                    sceneManager.controls.update();
+                }
+
+                // Renderizar Escena
+                sceneManager.renderer.render(sceneManager.scene, sceneManager.camera);
+            };
+
+            // Iniciar bucle de render con la llamada optimizada de WebXR compatible con AR
+            sceneManager.renderer.setAnimationLoop(animate);
+        });
+
+    </script>
+</body>
+</html>
