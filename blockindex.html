@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Wall Builder Concept - WebXR Simulator</title>
+    <!-- Tailwind CSS para el diseño UI/UX de alta calidad -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts para tipografía de estilo HUD de Ciencia Ficción -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Iconos Phosphor para interfaz visual limpia -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #080b10;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Efecto de resplandor holográfico */
+        .neon-glow-cyan {
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.6), 0 0 20px rgba(6, 182, 212, 0.2);
+        }
+        .neon-glow-orange {
+            text-shadow: 0 0 10px rgba(249, 115, 22, 0.6), 0 0 20px rgba(249, 115, 22, 0.2);
+        }
+        .border-glow-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.15), inset 0 0 15px rgba(6, 182, 212, 0.05);
+        }
+        /* Custom scrollbar para simulación futurista */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.3);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(6, 182, 212, 0.3);
+            border-radius: 4px;
+        }
+        /* Animaciones CSS personalizadas */
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        .scan-overlay::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(6,182,212,0) 0%, rgba(6,182,212,0.05) 50%, rgba(6,182,212,0) 100%);
+            animation: scanline 6s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes pulse-arrow {
+            0%, 100% { opacity: 0.3; transform: translateX(0); }
+            50% { opacity: 1; transform: translateX(8px); }
+        }
+        .pulsing-arrow {
+            animation: pulse-arrow 1.5s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen relative select-none scan-overlay">
+
+    
+    <!-- Lienzo de renderizado Three.js -->
+    <div id="canvas-container" class="absolute inset-0 z-0"></div>
+
+    <!-- UI - HUD de Realidad Aumentada -->
+    <div class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4 md:p-6">
+        
+        <!-- HEADER: Estado del Sistema y Modos de Visualización -->
+        <header class="w-full flex justify-between items-start">
+            <div class="flex items-center space-x-3 pointer-events-auto bg-slate-900/80 backdrop-blur-md border border-cyan-500/20 px-4 py-2.5 rounded-xl border-glow-cyan">
+                <div class="relative flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
+                </div>
+                <div>
+                    <h1 class="text-xs font-bold text-cyan-400 tracking-widest uppercase code-font">WebXR-V1.0 SIMULATOR</h1>
+                    <p class="text-[10px] text-slate-400 code-font">STATUS: CALIBRATED // SPATIAL_MAPPING: ACTIVE</p>
+                </div>
+            </div>
+
+            <!-- Panel de telemetría flotante superior derecho -->
+            <div class="hidden sm:flex flex-col items-end space-y-1 pointer-events-auto bg-slate-900/80 backdrop-blur-md border border-slate-700/30 px-3.5 py-2 rounded-xl text-[10px] text-slate-400 code-font">
+                <div>SYS_LATENCY: <span class="text-cyan-400">12.4ms</span></div>
+                <div>DEPTH_FIDELITY: <span class="text-cyan-400">98.2%</span></div>
+                <div>TRIANGLES: <span id="telemetry-triangles" class="text-orange-400">0</span></div>
+            </div>
+        </header>
+
+        <!-- PANEL DE CONTROL CENTRAL: Guía espacial interactiva y flechas de dirección -->
+        <main class="flex flex-col items-center justify-center space-y-4 my-auto">
+            <!-- Guía de posición central (Retícula AR flotante) -->
+            <div class="relative flex items-center justify-center pointer-events-none opacity-80 scale-90 md:scale-100">
+                <!-- Círculo interior reticulado -->
+                <div class="absolute w-36 h-36 border border-dashed border-cyan-500/30 rounded-full animate-spin" style="animation-duration: 20s;"></div>
+                <!-- Esquinas de retícula de escaneo -->
+                <div class="absolute w-44 h-44 border border-cyan-500/40 rounded-3xl"></div>
+                <div class="absolute w-48 h-48 bg-transparent">
+                    <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-cyan-400"></div>
+                    <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-cyan-400"></div>
+                    <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-cyan-400"></div>
+                    <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-cyan-400"></div>
+                </div>
+                <!-- Indicador central -->
+                <div class="absolute w-2 h-2 bg-orange-500 rounded-full neon-glow-orange"></div>
+                
+                <!-- Indicadores Horizontales Flotantes -->
+                <div class="absolute left-28 flex items-center space-x-1">
+                    <i class="ph ph-caret-right text-cyan-400 text-lg pulsing-arrow" style="animation-delay: 0.2s;"></i>
+                    <i class="ph ph-caret-right text-cyan-400 text-lg pulsing-arrow" style="animation-delay: 0.1s;"></i>
+                    <i class="ph ph-caret-right text-cyan-400 text-lg pulsing-arrow"></i>
+                </div>
+                <div class="absolute right-28 flex items-center space-x-1 rotate-180">
+                    <i class="ph ph-caret-right text-cyan-400 text-lg pulsing-arrow" style="animation-delay: 0.2s;"></i>
+                    <i class="ph ph-caret-right text-cyan-400 text-lg pulsing-arrow" style="animation-delay: 0.1s;"></i>
+                    <i class="ph ph-caret-right text-cyan-400 text-lg pulsing-arrow"></i>
+                </div>
+            </div>
+
+            <!-- Instrucciones de usuario flotantes -->
+            <div class="pointer-events-auto bg-slate-900/95 backdrop-blur-lg border border-cyan-500/30 px-5 py-3 rounded-2xl shadow-xl max-w-sm text-center">
+                <p class="text-sm font-semibold text-white tracking-wide">Mueve el dispositivo horizontalmente para construir</p>
+                <p class="text-xs text-cyan-400 mt-1 code-font">Usa el slider de tracking o arrastra el suelo para simular</p>
+            </div>
+        </main>
+
+
+        <!-- CONTROLES INFERIORES: Simulador de Tracking Espacial -->
+        <footer class="w-full flex flex-col space-y-4 pointer-events-auto">
+            
+            <div class="w-full grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+                <!-- Panel Estadístico -->
+                <div class="lg:col-span-3 bg-slate-900/90 backdrop-blur-md border border-slate-800 p-4 rounded-2xl flex justify-between items-center text-sm">
+                    <div>
+                        <span class="text-xs text-slate-400 block code-font">LADRILLOS</span>
+                        <span id="brick-counter" class="text-2xl font-bold text-orange-500 neon-glow-orange code-font">0 / 72</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs text-slate-400 block code-font">PROGRESO AR</span>
+                        <span id="progress-percentage" class="text-2xl font-bold text-cyan-400 neon-glow-cyan code-font">0%</span>
+                    </div>
+                </div>
+
+                <!-- Slider de Control de Movimiento Principal -->
+                <div class="lg:col-span-6 bg-slate-900/90 backdrop-blur-md border border-cyan-500/20 p-4 rounded-2xl border-glow-cyan">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center space-x-2">
+                            <i class="ph ph-compass text-cyan-400 text-base animate-pulse"></i>
+                            <span class="text-xs text-cyan-400 font-bold code-font tracking-wider">VIRTUAL X-TRACKING CONTROL</span>
+                        </div>
+                        <span id="coord-display" class="text-[10px] text-slate-400 code-font">X: 0.00m | Y: 0.00m</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span class="text-xs text-slate-500 font-bold code-font">-X</span>
+                        <div class="relative flex-1 group">
+                            <!-- Brillo de barra de progreso interactiva -->
+                            <input id="tracking-slider" type="range" min="0" max="100" value="0" 
+                                class="w-full h-2.5 bg-slate-800 rounded-lg appearance-none cursor-ew-resize accent-cyan-500 focus:outline-none transition-all">
+                        </div>
+                        <span class="text-xs text-slate-500 font-bold code-font">+X</span>
+                    </div>
+                </div>
+
+                <!-- Controles Rápidos -->
+                <div class="lg:col-span-3 bg-slate-900/90 backdrop-blur-md border border-slate-800 p-3 rounded-2xl flex justify-between items-center space-x-2">
+                    <button id="btn-autoplay" class="flex-1 flex flex-col items-center justify-center p-2 rounded-xl border border-slate-800 hover:border-cyan-500/30 hover:bg-slate-800/50 transition-all text-slate-400 hover:text-cyan-400" title="Auto-recorrido">
+                        <i class="ph ph-play-circle text-lg mb-1"></i>
+                        <span class="text-[10px] font-bold code-font">AUTO-PLAY</span>
+                    </button>
+                    <button id="btn-sound" class="flex-1 flex flex-col items-center justify-center p-2 rounded-xl border border-slate-800 hover:border-cyan-500/30 hover:bg-slate-800/50 transition-all text-slate-400 hover:text-cyan-400" title="Alternar audio espacial">
+                        <i id="sound-icon" class="ph ph-speaker-slash text-lg mb-1"></i>
+                        <span class="text-[10px] font-bold code-font">AUDIO_OFF</span>
+                    </button>
+                    <button id="btn-reset" class="flex-1 flex flex-col items-center justify-center p-2 rounded-xl border border-slate-800 hover:border-red-500/30 hover:bg-red-950/20 transition-all text-slate-400 hover:text-red-400" title="Reiniciar construcción">
+                        <i class="ph ph-arrows-counter-clockwise text-lg mb-1"></i>
+                        <span class="text-[10px] font-bold code-font">RESET</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="text-[9px] text-slate-600 text-center code-font pb-2">
+                DESARROLLADO EN WEBXR SIMULATION SUITE // THREE.JS COMPLIANT ENGINE
+            </div>
+        </footer>
+
+    </div>
+
+
+    <!-- Cargar Three.js, OrbitControls y Tone.js para síntesis de audio interactiva -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+    <script>
+        
+        let scene, camera, renderer, controls;
+        let wallBricks = [];
+        let holographicPlane;
+        let trackingProgress = 0; // 0.0 a 1.0
+        let targetProgress = 0;
+        let lastProgress = 0;
+        let autoPlay = false;
+        let soundEnabled = false;
+        let synthClick, reverb;
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        
+        // Estructura dimensional del muro físico simulado
+        const WALL_ROWS = 6;
+        const WALL_COLS = 12;
+        const BRICK_WIDTH = 1.0;
+        const BRICK_HEIGHT = 0.4;
+        const BRICK_DEPTH = 0.5;
+        const JOINT_SPACING = 0.04; // Espacio para el mortero conceptual
+
+        const WALL_TOTAL_WIDTH = WALL_COLS * (BRICK_WIDTH + JOINT_SPACING);
+
+        // Elementos del DOM
+        const trackingSlider = document.getElementById('tracking-slider');
+        const progressPercentage = document.getElementById('progress-percentage');
+        const brickCounter = document.getElementById('brick-counter');
+        const coordDisplay = document.getElementById('coord-display');
+        const btnAutoPlay = document.getElementById('btn-autoplay');
+        const btnSound = document.getElementById('btn-sound');
+        const btnReset = document.getElementById('btn-reset');
+        const telemetryTriangles = document.getElementById('telemetry-triangles');
+
+
+        function initAudio() {
+            if (!soundEnabled) return;
+            try {
+                // Sintetizador con decaimiento rápido que emula el encaje magnético/físico de un bloque
+                synthClick = new Tone.NoiseSynth({
+                    noise: { type: 'pink' },
+                    envelope: {
+                        attack: 0.002,
+                        decay: 0.12,
+                        sustain: 0.01,
+                        release: 0.05
+                    }
+                });
+                
+                // Filtro para simular eco espacial
+                const filter = new Tone.Filter({
+                    frequency: 2400,
+                    type: 'bandpass'
+                });
+
+                reverb = new Tone.Reverb({
+                    roomSize: 0.6,
+                    wet: 0.3,
+                    decay: 1.5
+                }).toDestination();
+
+                synthClick.connect(filter);
+                filter.connect(reverb);
+            } catch (e) {
+                console.error("No se pudo iniciar el audio de Tone.js:", e);
+            }
+        }
+
+        function playBrickPlacementSound() {
+            if (!soundEnabled || !synthClick) return;
+            try {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                synthClick.triggerAttackRelease("16n");
+            } catch (e) {
+                console.warn(e);
+            }
+        }
+
+
+        function initThree() {
+            const container = document.getElementById('canvas-container');
+            
+            // Creación de Escena
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x080b10, 0.04);
+
+            // Cámara fotográfica con perspectiva dinámica
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+            // Posicionar la cámara para ver el muro flotante en perspectiva isométrica
+            camera.position.set(-6, 4.5, 9.5);
+
+            // Renderizador WebGL con soporte de sombras suaves y alto contraste espacial
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Controles de Órbita de usuario para rotación libre del muro
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.02; // No pasar por debajo de la rejilla de soporte
+            controls.minDistance = 3;
+            controls.maxDistance = 25;
+            controls.target.set(0, 1.2, 0);
+
+            // Iluminación Avanzada (Ambiente Holográfica + Luz Focal constructiva)
+            const ambientLight = new THREE.AmbientLight(0x0e1726, 1.8);
+            scene.add(ambientLight);
+
+            // Foco de luz principal para proyectar sombras dramáticas de los ladrillos
+            const spotLight = new THREE.SpotLight(0xffffff, 2.5);
+            spotLight.position.set(-8, 12, 10);
+            spotLight.angle = Math.PI / 4;
+            spotLight.penumbra = 0.8;
+            spotLight.castShadow = true;
+            spotLight.shadow.mapSize.width = 1024;
+            spotLight.shadow.mapSize.height = 1024;
+            spotLight.shadow.camera.near = 5;
+            spotLight.shadow.camera.far = 25;
+            spotLight.shadow.bias = -0.0005;
+            scene.add(spotLight);
+
+            // Luz de relleno holográfica cian que viene del suelo
+            const directionalHoloLight = new THREE.DirectionalLight(0x06b6d4, 1.2);
+            directionalHoloLight.position.set(0, -5, 0);
+            scene.add(directionalHoloLight);
+
+            // Elementos de referencia del entorno (Placa de suelo de rejilla cibernética)
+            const gridHelper = new THREE.GridHelper(30, 30, 0x06b6d4, 0x1e293b);
+            gridHelper.position.y = -0.01;
+            scene.add(gridHelper);
+
+            // Plano conceptual de oclusión (suelo metálico oscuro que capta sombras)
+            const floorGeo = new THREE.PlaneGeometry(50, 50);
+            const floorMat = new THREE.MeshStandardMaterial({
+                color: 0x070a0f,
+                roughness: 0.7,
+                metalness: 0.8
+            });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+
+            // Plano de barrido holográfico móvil
+            const holoGeo = new THREE.PlaneGeometry(0.08, 6);
+            const holoMat = new THREE.MeshBasicMaterial({
+                color: 0x06b6d4,
+                transparent: true,
+                opacity: 0.6,
+                side: THREE.DoubleSide
+            });
+            holographicPlane = new THREE.Mesh(holoGeo, holoMat);
+            holographicPlane.position.set(0, 3, 0.4);
+            scene.add(holographicPlane);
+
+            // Líneas brillantes de soporte láser
+            const laserLineGeo = new THREE.BoxGeometry(0.02, 6, 0.8);
+            const laserLineMat = new THREE.MeshBasicMaterial({
+                color: 0x06b6d4,
+                transparent: true,
+                opacity: 0.9
+            });
+            const laserLine = new THREE.Mesh(laserLineGeo, laserLineMat);
+            holographicPlane.add(laserLine);
+
+            buildWallStructure();
+            updateTelemetryInfo();
+        }
+
+
+        function buildWallStructure() {
+            const brickGeometry = new THREE.BoxGeometry(BRICK_WIDTH, BRICK_HEIGHT, BRICK_DEPTH);
+            
+            // Colores terracota realistas para simulación AR (con sutiles variaciones cromáticas de cocción)
+            const terracottaTones = [
+                0xe05a36, 0xd44f2a, 0xe86743, 0xc94723, 0xf0714d
+            ];
+
+            // Coordenada inicial izquierda para centrado perfecto
+            const startX = -((WALL_COLS * (BRICK_WIDTH + JOINT_SPACING)) / 2) + (BRICK_WIDTH / 2);
+
+            for (let r = 0; r < WALL_ROWS; r++) {
+                const isOffsetRow = (r % 2 === 1);
+                // Si es fila desplazada, sumamos un ladrillo para rellenar extremos con medios ladrillos
+                const activeCols = isOffsetRow ? WALL_COLS + 1 : WALL_COLS;
+
+                for (let c = 0; c < activeCols; c++) {
+                    let w = BRICK_WIDTH;
+                    let posX = startX + c * (BRICK_WIDTH + JOINT_SPACING);
+
+                    // Reescalado para simular medios ladrillos en los bordes de la fila par desfasada
+                    let isHalfBrick = false;
+                    if (isOffsetRow) {
+                        if (c === 0) {
+                            w = BRICK_WIDTH / 2 - (JOINT_SPACING / 2);
+                            posX = startX - (BRICK_WIDTH / 4) - (JOINT_SPACING / 4);
+                            isHalfBrick = true;
+                        } else if (c === activeCols - 1) {
+                            w = BRICK_WIDTH / 2 - (JOINT_SPACING / 2);
+                            posX = startX + (c - 1) * (BRICK_WIDTH + JOINT_SPACING) + (BRICK_WIDTH * 0.75) + (JOINT_SPACING * 0.75);
+                            isHalfBrick = true;
+                        } else {
+                            posX = startX + (c - 0.5) * (BRICK_WIDTH + JOINT_SPACING);
+                        }
+                    }
+
+                    // Material estándar con propiedades de rugosidad física de arcilla real y brillo holográfico integrado
+                    const colorPick = terracottaTones[Math.floor(Math.random() * terracottaTones.length)];
+                    const material = new THREE.MeshStandardMaterial({
+                        color: colorPick,
+                        roughness: 0.95,
+                        metalness: 0.1,
+                        emissive: 0x000000,
+                        emissiveIntensity: 0
+                    });
+
+                    // Geometría adaptada (mitad si es ladrillo de terminación)
+                    const geom = isHalfBrick ? new THREE.BoxGeometry(w, BRICK_HEIGHT, BRICK_DEPTH) : brickGeometry;
+                    const brickMesh = new THREE.Mesh(geom, material);
+                    
+                    brickMesh.castShadow = true;
+                    brickMesh.receiveShadow = true;
+                    brickMesh.visible = false; // Se inicializa oculto para activarse en el barrido
+
+                    // Guardamos coordenadas de diseño físicas reales
+                    const targetY = r * (BRICK_HEIGHT + JOINT_SPACING) + (BRICK_HEIGHT / 2);
+                    
+                    // Almacenamos el elemento con metadatos para la lógica de animación
+                    wallBricks.push({
+                        id: `${r}-${c}`,
+                        mesh: brickMesh,
+                        targetX: posX,
+                        targetY: targetY,
+                        targetZ: 0,
+                        triggerProgress: ((posX + (WALL_TOTAL_WIDTH / 2)) / WALL_TOTAL_WIDTH), // Fracción 0 a 1 asociada a su eje X
+                        active: false,
+                        animTime: 0,
+                        color: colorPick
+                    });
+
+                    scene.add(brickMesh);
+                }
+            }
+        }
+
+
+        // Ecuación de rebote físico elástico de colisión (Bounce Ease-Out)
+        function easeOutBounce(t) {
+            const n1 = 7.5625;
+            const d1 = 2.75;
+            
+            if (t < 1 / d1) {
+                return n1 * t * t;
+            } else if (t < 2 / d1) {
+                return n1 * (t -= 1.5 / d1) * t + 0.75;
+            } else if (t < 2.5 / d1) {
+                return n1 * (t -= 2.25 / d1) * t + 0.9375;
+            } else {
+                return n1 * (t -= 2.625 / d1) * t + 0.984375;
+            }
+        }
+
+        function updateTelemetryInfo() {
+            let activeCount = wallBricks.filter(b => b.active).length;
+            brickCounter.innerText = `${activeCount} / ${wallBricks.length}`;
+            telemetryTriangles.innerText = scene.getObjectCount ? scene.getObjectCount() * 12 : activeCount * 12;
+        }
+
+
+        function updateSimulation(deltaTime) {
+            // Suavizado del input para simular aceleraciones inerciales del tracking de AR
+            trackingProgress += (targetProgress - trackingProgress) * 0.15;
+            
+            // Actualizar interfaz del HUD
+            const percent = Math.round(trackingProgress * 100);
+            progressPercentage.innerText = `${percent}%`;
+            
+            const currentVirtualX = (trackingProgress * WALL_TOTAL_WIDTH) - (WALL_TOTAL_WIDTH / 2);
+            coordDisplay.innerText = `X: ${currentVirtualX.toFixed(2)}m | Y: 0.00m`;
+
+            // Mapeo horizontal del plano holográfico láser
+            holographicPlane.position.x = currentVirtualX;
+
+            let stateChanged = false;
+
+            // Procesar estado espacial de cada bloque
+            wallBricks.forEach(brick => {
+                // Si el láser supera el umbral X del ladrillo, se ensambla en el espacio
+                if (trackingProgress >= brick.triggerProgress && !brick.active) {
+                    brick.active = true;
+                    brick.mesh.visible = true;
+                    brick.animTime = 0;
+                    stateChanged = true;
+                    
+                    // Efectos cosméticos holográficos instantáneos al inicializarse
+                    brick.mesh.material.emissive.setHex(0x06b6d4);
+                    brick.mesh.material.emissiveIntensity = 1.0;
+
+                    playBrickPlacementSound();
+                } 
+                // Desensamblar si el usuario retrocede horizontalmente el dispositivo (mecanismo interactivo reversible)
+                else if (trackingProgress < brick.triggerProgress && brick.active) {
+                    brick.active = false;
+                    brick.mesh.visible = false;
+                    stateChanged = true;
+                }
+
+                // Animación de caída gravitatoria con rebote
+                if (brick.active && brick.animTime < 1) {
+                    brick.animTime += deltaTime * 1.4; // Duración aproximada de caída (0.7s)
+                    if (brick.animTime > 1) brick.animTime = 1;
+
+                    const t = brick.animTime;
+                    
+                    // Interpolación de escala (crece desde cero)
+                    const scaleFactor = Math.min(t * 1.5, 1.0);
+                    brick.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+                    // Interpolación vertical con el bounce amortiguado (Cae de un delta vertical de 2.5 metros)
+                    const bounceFactor = easeOutBounce(t);
+                    const spawnHeightDelta = 2.5;
+                    brick.mesh.position.y = brick.targetY + (spawnHeightDelta * (1 - bounceFactor));
+                    brick.mesh.position.x = brick.targetX;
+                    brick.mesh.position.z = brick.targetZ;
+
+                    // Decaimiento del efecto de energía emisiva holográfica
+                    if (t > 0.5) {
+                        const fade = (1 - t) * 2;
+                        brick.mesh.material.emissiveIntensity = fade;
+                    }
+                }
+            });
+
+            if (stateChanged) {
+                updateTelemetryInfo();
+            }
+        }
+
+
+        let lastTime = 0;
+        function animate(currentTime) {
+            requestAnimationFrame(animate);
+
+            // Obtener Delta de tiempo seguro
+            if (!lastTime) lastTime = currentTime;
+            let dt = (currentTime - lastTime) / 1000;
+            if (dt > 0.1) dt = 0.1; // Limite de frame-drop
+            lastTime = currentTime;
+
+            // Manejo del modo de Auto-Play
+            if (autoPlay) {
+                let speed = 0.08; // Factor de desplazamiento por segundo
+                let nextVal = parseFloat(trackingSlider.value) + (speed * 100 * dt);
+                if (nextVal >= 100) {
+                    nextVal = 100;
+                    autoPlay = false;
+                    btnAutoPlay.classList.remove('border-cyan-500', 'text-cyan-400');
+                    btnAutoPlay.classList.add('border-slate-800', 'text-slate-400');
+                }
+                trackingSlider.value = nextVal;
+                targetProgress = nextVal / 100;
+            }
+
+            updateSimulation(dt);
+
+            // Actualización de rotación inercial de la cámara de Three.js
+            controls.update();
+
+            // Renderizar la escena
+            renderer.render(scene, camera);
+        }
+
+
+        // Evento interactivo del slider simulador
+        trackingSlider.addEventListener('input', (e) => {
+            targetProgress = e.target.value / 100;
+            if (autoPlay) {
+                autoPlay = false;
+                btnAutoPlay.classList.remove('border-cyan-500', 'text-cyan-400');
+                btnAutoPlay.classList.add('border-slate-800', 'text-slate-400');
+            }
+        });
+
+        // Habilitar/Deshabilitar audio interactivo
+        btnSound.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            
+            if (soundEnabled) {
+                // Inicializar Tone.js si es la primera vez que se toca
+                Tone.start();
+                initAudio();
+                
+                btnSound.classList.add('border-cyan-500', 'text-cyan-400');
+                btnSound.classList.remove('text-slate-400');
+                icon.className = 'ph ph-speaker-high text-lg mb-1';
+                btnSound.querySelector('span').innerText = 'AUDIO_ON';
+            } else {
+                btnSound.classList.remove('border-cyan-500', 'text-cyan-400');
+                btnSound.classList.add('text-slate-400');
+                icon.className = 'ph ph-speaker-slash text-lg mb-1';
+                btnSound.querySelector('span').innerText = 'AUDIO_OFF';
+            }
+        });
+
+        // Botón de reproducción automática
+        btnAutoPlay.addEventListener('click', () => {
+            autoPlay = !autoPlay;
+            if (autoPlay) {
+                btnAutoPlay.classList.add('border-cyan-500', 'text-cyan-400');
+                btnAutoPlay.classList.remove('text-slate-400');
+                // Si ya llegó al final, reiniciamos automáticamente
+                if (trackingSlider.value >= 100) {
+                    resetWall();
+                }
+            } else {
+                btnAutoPlay.classList.remove('border-cyan-500', 'text-cyan-400');
+                btnAutoPlay.classList.add('text-slate-400');
+            }
+        });
+
+        // Resetear estructura constructiva
+        function resetWall() {
+            trackingSlider.value = 0;
+            targetProgress = 0;
+            trackingProgress = 0;
+            
+            wallBricks.forEach(brick => {
+                brick.active = false;
+                brick.mesh.visible = false;
+                brick.animTime = 0;
+                brick.mesh.material.emissiveIntensity = 0;
+            });
+            updateTelemetryInfo();
+        }
+
+        btnReset.addEventListener('click', () => {
+            resetWall();
+            
+            // Animación física de sacudida visual al resetear
+            btnReset.classList.add('scale-95', 'border-red-500');
+            setTimeout(() => {
+                btnReset.classList.remove('scale-95', 'border-red-500');
+            }, 200);
+        });
+
+        // Escalabilidad adaptativa ante cambios de tamaño de ventana del dispositivo móvil/escritorio
+        window.addEventListener('resize', onWindowResize, false);
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Activación del simulador al cargarse el navegador
+        window.onload = function() {
+            initThree();
+            requestAnimationFrame(animate);
+        };
+
+    </script>
+</body>
+</html>
