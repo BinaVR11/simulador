@@ -2,87 +2,71 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>WebXR: Detección de Superficies y Construcción de Muro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>WebXR & Simulador AR: Construcción</title>
+    <!-- Tailwind CSS para asegurar que la UI no falle -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
-        canvas { display: block; }
-
-        /* UI de Instrucciones y Estado */
-        #ui-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
-            color: white; font-family: monospace; text-shadow: 0 1px 3px rgba(0,0,0,0.8);
-            z-index: 10; padding-bottom: calc(20px + env(safe-area-inset-bottom));
-        }
-
-        #xr-status {
-            background-color: rgba(0, 200, 100, 0.7);
-            color: #000; padding: 8px 16px; border-radius: 20px;
-            font-weight: bold; font-size: 14px;
-            margin-bottom: 10px;
-            box-shadow: 0 2px 10px rgba(0, 200, 100, 0.5);
-            backdrop-filter: blur(5px);
-        }
-
-        #ui-instructions {
-            background-color: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(0, 255, 200, 0.2);
-            border-radius: 12px;
-            padding: 20px 30px;
-            text-align: center;
-            max-width: 80%;
-            box-shadow: 0 4px 20px rgba(0, 255, 200, 0.2);
-            transition: opacity 0.5s ease;
-        }
-
-        #ui-instructions h1 { margin: 0 0 10px; font-size: 1.5rem; color: #0fcc8; }
-        #ui-instructions p { margin: 0 0 15px; font-size: 1rem; color: #a0aec0; }
-        #ar-progress-bar { width: 100%; height: 4px; background-color: rgba(255,255,255,0.1); border-radius: 2px; position: relative; overflow: hidden; }
-        #ar-progress-inner { position: absolute; left: 0; top: 0; height: 100%; background: linear-gradient(90deg, #0fcc8, #00f3ff); width: 0%; transition: width 0.3s ease; }
-
-        /* Botón de AR */
-        #ar-button {
-            position: absolute;
-            bottom: 30px; left: 50%; transform: translateX(-50%);
-            padding: 12px 24px; background: linear-gradient(135deg, #0fcc8, #00f3ff);
-            color: white; border: none; border-radius: 30px;
-            font-size: 16px; font-weight: bold; cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 255, 200, 0.4);
-            transition: all 0.2s ease;
-            text-transform: uppercase; letter-spacing: 1px;
-        }
-
-        #ar-button:hover { box-shadow: 0 6px 20px rgba(0, 255, 200, 0.6); transform: translateX(-50%) translateY(-2px); }
-        #ar-button:disabled { background: #555; cursor: not-allowed; box-shadow: none; color: #aaa; }
-
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #0a0a16; font-family: monospace; }
+        canvas { display: block; position: absolute; top:0; left:0; width:100%; height:100%; z-index: 1; }
+        .safe-bottom { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
     </style>
 </head>
 <body>
 
-    <button id="ar-button">Cargando...</button>
-
-    <div id="ui-overlay">
-        <div id="xr-status">WebXR No Disponible</div>
-        <div id="ui-instructions">
-            <h1>WebXR Hit Testing</h1>
-            <p>1. Permite acceso a la cámara. <br> 2. Mueve lentamente tu dispositivo para escanear el suelo. <br> 3. Toca la pantalla cuando detecte la superficie.</p>
-            <div id="ar-progress-bar">
-                <div id="ar-progress-inner"></div>
+    <!-- UI HOLOGRÁFICA SUPERPUESTA -->
+    <div id="ui-overlay" class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-6 safe-bottom">
+        
+        <!-- Header: Telemetría -->
+        <div class="flex justify-between items-start w-full">
+            <div class="bg-black/70 backdrop-blur-md border border-cyan-500/30 p-3 rounded-xl text-xs text-cyan-400 shadow-lg shadow-cyan-500/10">
+                <div class="flex items-center gap-2">
+                    <span id="status-indicator" class="w-2 height-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    <span id="xr-status">INICIALIZANDO...</span>
+                </div>
+                <div id="telemetry-details" class="mt-1 text-slate-400 text-[10px]">Modo: Comprobando sistema</div>
             </div>
+            
+            <div id="block-counter" class="bg-black/70 backdrop-blur-md border border-emerald-500/30 p-3 rounded-xl text-right text-xs text-emerald-400">
+                <div>PROGRESO DE MURO</div>
+                <div id="counter-txt" class="font-bold text-sm mt-0.5">0 / 0 Bloques</div>
+            </div>
+        </div>
+
+        <!-- Centro: Retícula / Guía Visual de Escaneo -->
+        <div id="scan-reticle-ui" class="m-auto flex flex-col items-center justify-center text-center transition-all duration-500">
+            <div class="w-16 h-16 border-2 border-dashed border-cyan-400 rounded-full animate-spin [animation-duration:10s] flex items-center justify-center">
+                <div class="w-2 h-2 bg-cyan-400 rounded-full"></div>
+            </div>
+            <p id="guide-text" class="text-white text-xs tracking-widest mt-4 bg-black/50 px-3 py-1 rounded-md backdrop-blur-sm border border-white/10">
+                ESCANEANDO ENTORNO...
+            </p>
+        </div>
+
+        <!-- Footer: Instrucciones y Progreso -->
+        <div class="w-full max-w-md mx-auto pointer-events-auto flex flex-col items-center gap-3">
+            <div class="w-full bg-black/80 backdrop-blur-xl border border-white/10 p-4 rounded-2xl shadow-2xl text-center">
+                <div class="w-full bg-white/10 h-1.5 rounded-full overflow-hidden mb-3">
+                    <div id="ar-progress-inner" class="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 w-0 transition-all duration-300"></div>
+                </div>
+                <p id="action-instruction" class="text-slate-300 text-xs">
+                    Cargando módulos de visión artificial...
+                </p>
+            </div>
+            
+            <!-- Botón de Control (El script nativo de Three.js se inyectará aquí o usará este) -->
+            <button id="ar-btn-trigger" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-bold tracking-wider text-sm shadow-xl shadow-cyan-500/20 active:scale-95 transition-all uppercase">
+                Iniciar Modo Simulación
+            </button>
         </div>
     </div>
 
-    <!-- Scripts de Three.js (Import Map y CDN) -->
+    <!-- SCRIPTS CORE -->
     <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
     <script type="importmap">
     {
         "imports": {
             "three": "https://unpkg.com/three@0.150.0/build/three.module.js",
-            "three/examples/jsm/loaders/GLTFLoader.js": "https://unpkg.com/three@0.150.0/examples/jsm/loaders/GLTFLoader.js",
             "three/examples/jsm/webxr/ARButton.js": "https://unpkg.com/three@0.150.0/examples/jsm/webxr/ARButton.js"
         }
     }
@@ -92,162 +76,247 @@
         import * as THREE from 'three';
         import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
 
-        // Variables principales de la Escena y XR
-        let container, camera, scene, renderer, arButtonElement;
-        let xrStatus, uiInstructions, arProgressInner;
+        // Elementos de la UI
+        const xrStatus = document.getElementById('xr-status');
+        const statusIndicator = document.getElementById('status-indicator');
+        const telemetryDetails = document.getElementById('telemetry-details');
+        const counterTxt = document.getElementById('counter-txt');
+        const guideText = document.getElementById('guide-text');
+        const actionInstruction = document.getElementById('action-instruction');
+        const arProgressInner = document.getElementById('ar-progress-inner');
+        const arBtnTrigger = document.getElementById('ar-btn-trigger');
+        const scanReticleUi = document.getElementById('scan-reticle-ui');
 
-        // Variables de Detección de Superficie y Lógica
-        let hitTestSource = null;
-        let hitTestSourceRequested = false;
-        let surfacePlaneFound = false;
-
-        // Variables de Construcción de Muro
+        // Three.js & Config
+        let scene, camera, renderer, hitTestSource = null, hitTestSourceRequested = false;
+        let surfacePlaneFound = false, isFallbackMode = false;
+        
+        // Muro de Ladrillos
         const brickGroup = new THREE.Group();
-        const wallBricks = [];
-        const wallDimensions = { width: 1.2, height: 0.8, depth: 0.05, rows: 8, cols: 6 };
-        const brickSize = { width: 0.2, height: 0.1, depth: 0.05, mortar: 0.01 };
-        let buildProgress = 0; // 0.0 a 1.0
+        let wallBricks = [];
         let currentBuildIdx = 0;
+        const wallConfig = { rows: 7, cols: 6, bWidth: 0.2, bHeight: 0.08, bDepth: 0.06, mortar: 0.008 };
+
+        // Referencia para modo simulado sin AR real
+        let dummyGrid, dummyReticle;
 
         init();
-        animate();
 
         function init() {
-            container = document.createElement('div');
-            document.body.appendChild(container);
-
-            // 1. Configurar Escena
+            // 1. Configurar Escena Básica
             scene = new THREE.Scene();
 
             // 2. Configurar Cámara
             camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+            camera.position.set(0, 0.6, 1.2); // Posición inicial por si entra en modo PC
 
-            // 3. Configurar Renderizado Transparente para AR
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
+            // 3. Renderizador con Canal Alfa (Transparencia para la cámara real)
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.xr.enabled = true; // Activar WebXR
-            container.appendChild(renderer.domElement);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
 
-            // 4. Luces (Iluminación para AR)
-            const light1 = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-            light1.position.set(0.5, 1, 0.25);
-            scene.add(light1);
+            // 4. Luces Estilizadas
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
 
-            const light2 = new THREE.DirectionalLight(0xffffff, 0.5);
-            light2.position.set(0.5, 3, 0.25);
-            light2.castShadow = true;
-            scene.add(light2);
+            const dirLight = new THREE.DirectionalLight(0x00ffff, 0.8); // Luz cian futurista
+            dirLight.position.set(1, 3, 1);
+            scene.add(dirLight);
 
-            // 5. Configurar Botón WebXR y Estado de la UI
-            arButtonElement = document.getElementById('ar-button');
-            xrStatus = document.getElementById('xr-status');
-            uiInstructions = document.getElementById('ui-instructions');
-            arProgressInner = document.getElementById('ar-progress-inner');
+            const warmLight = new THREE.DirectionalLight(0xe07b39, 0.5); // Reflejo terracota
+            warmLight.position.set(-1, 1, 0.5);
+            scene.add(warmLight);
 
-            checkXRCompatibility();
+            // Añadir grupo del muro a la escena
+            scene.add(brickGroup);
 
-            // 6. Configurar Interacción de Toque (para WebXR)
-            renderer.xr.addEventListener('sessionstart', onXRSessionStart);
-            renderer.xr.addEventListener('sessionend', onXRSessionEnd);
+            // 5. Generar Estructura Matemática de los Ladrillos
+            buildWallStructure();
 
-            // La construcción se inicia con un toque después de encontrar el suelo
-            window.addEventListener('touchstart', onTouchStart, false);
+            // 6. Verificar Compatibilidad Física Real de WebXR
+            checkXRSupport();
 
-            // 7. Preparar la estructura del Muro (pero no renderizarlo todavía)
-            generateWallGeometry();
-
-            // 8. Event Listener para Redimensionado
+            // 7. Eventos de interacción
             window.addEventListener('resize', onWindowResize);
+            window.addEventListener('pointerdown', handleUserInteraction);
+
+            // Iniciar ciclo de renderizado nativo de WebXR
+            renderer.setAnimationLoop(renderLoop);
         }
 
-        function checkXRCompatibility() {
+        function checkXRSupport() {
+            // Verificar contexto seguro HTTPS
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+                setupFallbackMode("Falta HTTPS (Seguridad Obligatoria)");
+                return;
+            }
+
             if ('xr' in navigator) {
-                navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
-                    if (supported) {
-                        xrStatus.innerText = 'WebXR AR Disponible';
-                        xrStatus.style.backgroundColor = 'rgba(0, 200, 100, 0.7)';
-                        setupARButton();
-                    } else {
-                        xrStatus.innerText = 'Immersive-AR no soportado';
-                        xrStatus.style.backgroundColor = 'rgba(200, 50, 50, 0.7)';
-                        arButtonElement.innerText = 'AR NO DISPONIBLE';
-                        arButtonElement.disabled = true;
-                    }
-                });
+                navigator.xr.isSessionSupported('immersive-ar')
+                    .then((supported) => {
+                        if (supported) {
+                            activateRealARMode();
+                        } else {
+                            setupFallbackMode("Dispositivo no soporta ARCore/WebXR");
+                        }
+                    })
+                    .catch(() => setupFallbackMode("Error de entorno XR"));
             } else {
-                xrStatus.innerText = 'WebXR no detectado';
-                xrStatus.style.backgroundColor = 'rgba(200, 50, 50, 0.7)';
-                arButtonElement.innerText = 'NAVEGADOR INCOMPATIBLE';
-                arButtonElement.disabled = true;
+                setupFallbackMode("Navegador sin API WebXR");
             }
         }
 
-        function setupARButton() {
-            // El módulo ARButton crea su propio botón, pero lo vincularemos al nuestro
-            const arButton = ARButton.createButton(renderer, {
+        function activateRealARMode() {
+            xrStatus.innerText = "RA LISTA";
+            statusIndicator.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+            telemetryDetails.innerText = "Modo: WebXR Immersive-AR (Cámara Real)";
+            actionInstruction.innerText = "Presiona 'INICIAR REALIDAD AUMENTADA' y escanea tu piso.";
+
+            // Configurar el disparador nativo de Three.js sobre nuestro botón táctil
+            const options = {
+                requiredFeatures: ['hit-test'],
                 optionalFeatures: ['dom-overlay'],
-                domOverlay: { root: document.getElementById('ui-overlay') },
-                requiredFeatures: ['hit-test'] // Requerido para la detección de superficies
+                domOverlay: { root: document.getElementById('ui-overlay') }
+            };
+
+            // Creamos el botón nativo invisiblemente y transferimos su click
+            const nativeArBtn = ARButton.createButton(renderer, options);
+            arBtnTrigger.innerText = "Iniciar Realidad Aumentada";
+            arBtnTrigger.addEventListener('click', () => {
+                nativeArBtn.click(); 
+                arBtnTrigger.style.display = 'none'; // Ocultar al iniciar sesión
             });
 
-            // Reemplazar nuestro botón por el nativo de ARButton
-            arButtonElement.style.display = 'none'; // Ocultar el nuestro
-            document.body.appendChild(arButton); // Añadir el nativo (ya gestiona el texto y click)
-            arButton.id = 'webxr-native-button'; // ID para estilo si es necesario (heredará estilos básicos)
-            arButton.style.cssText = arButtonElement.style.cssText; // Copiar estilos visibles
-            arButton.style.display = 'block'; // Mostrar el nativo
+            renderer.xr.addEventListener('sessionstart', () => {
+                scanReticleUi.style.opacity = '1';
+                guideText.innerText = "MUEVE EL CELULAR DE LADO A LADO MIRANDO AL SUELO";
+                actionInstruction.innerText = "Buscando una superficie plana horizontal...";
+            });
+
+            renderer.xr.addEventListener('sessionend', () => {
+                arBtnTrigger.style.display = 'block';
+                surfacePlaneFound = false;
+                resetWallProgress();
+            });
         }
 
-        function onXRSessionStart() {
-            uiInstructions.style.opacity = '1';
-            // Resetear el progreso
-            buildProgress = 0;
-            currentBuildIdx = 0;
-            updateBuildUI();
+        function setupFallbackMode(reason) {
+            isFallbackMode = true;
+            xrStatus.innerText = "MODO SIMULADOR 3D";
+            statusIndicator.className = "w-2 h-2 rounded-full bg-blue-400";
+            telemetryDetails.innerText = `Razón: ${reason}`;
+            actionInstruction.innerText = "Haciendo clic o tocando cualquier parte de la pantalla levantarás el muro.";
+            arBtnTrigger.innerText = "Ejecutando en Modo Sandbox";
+            arBtnTrigger.disabled = true;
+            arBtnTrigger.className = "w-full py-3 bg-slate-800 text-slate-500 rounded-xl font-bold text-xs border border-slate-700 cursor-not-allowed uppercase";
+
+            // Crear un suelo virtual de cuadrícula cibernética para que no se vea negro
+            dummyGrid = new THREE.GridHelper(10, 20, 0x00f3ff, 0x1e293b);
+            dummyGrid.position.y = -0.5;
+            scene.add(dummyGrid);
+
+            // Crear un retículo visual simulado en el centro del suelo
+            const reticleGeo = new THREE.RingGeometry(0.08, 0.1, 32);
+            reticleGeo.rotateX(-Math.PI / 2);
+            const reticleMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.DoubleSide });
+            dummyReticle = new THREE.Mesh(reticleGeo, reticleMat);
+            dummyReticle.position.set(0, -0.49, -0.5);
+            scene.add(dummyReticle);
+
+            // Posicionar el grupo del muro directamente en el suelo virtual
+            brickGroup.position.set(0, -0.5, -0.5);
+            surfacePlaneFound = true; // Activar simulación directa
+            guideText.innerText = "SISTEMA VIRTUAL ACTIVO";
         }
 
-        function onXRSessionEnd() {
-            uiInstructions.style.opacity = '0';
-            hitTestSource = null;
-            hitTestSourceRequested = false;
-            surfacePlaneFound = false;
+        function buildWallStructure() {
+            const fullW = wallConfig.cols * (wallConfig.bWidth + wallConfig.mortar);
+            let globalIdx = 0;
 
-            // Limpiar escena del muro si cerramos AR
-            scene.remove(brickGroup);
-            while (brickGroup.children.length > 0) {
-                const child = brickGroup.children[0];
-                brickGroup.remove(child);
-                child.geometry.dispose();
-                child.material.dispose();
+            const brickMat = new THREE.MeshPhongMaterial({ 
+                color: 0xe07b39, 
+                flatShading: true,
+                shininess: 10
+            });
+
+            for (let r = 0; r < wallConfig.rows; r++) {
+                const isOdd = (r % 2 !== 0);
+                const colsInRow = isOdd ? wallConfig.cols - 1 : wallConfig.cols;
+                const offsetShift = isOdd ? (wallConfig.bWidth / 2) : 0;
+
+                // Ladrillo inicial izquierdo (Mitad si es fila impar)
+                if (isOdd) {
+                    createBrickElement(-fullW/2 + wallConfig.bWidth/4, r, true, globalIdx++, brickMat);
+                }
+
+                // Ladrillos estándar intermedios
+                for (let c = 0; c < colsInRow; c++) {
+                    const x = -fullW/2 + offsetShift + c * (wallConfig.bWidth + wallConfig.mortar) + (wallConfig.bWidth / 2);
+                    createBrickElement(x, r, false, globalIdx++, brickMat);
+                }
+
+                // Ladrillo final derecho (Mitad si es fila impar)
+                if (isOdd) {
+                    createBrickElement(fullW/2 - wallConfig.bWidth/4, r, true, globalIdx++, brickMat);
+                }
             }
-            buildProgress = 0;
-            updateBuildUI();
+            counterTxt.innerText = `0 / ${wallBricks.length} Bloques`;
         }
 
-        function onTouchStart() {
-            if (!surfacePlaneFound || !renderer.xr.isPresenting) return;
+        function createBrickElement(x, r, isHalf, idx, material) {
+            const w = isHalf ? (wallConfig.bWidth / 2) - wallConfig.mortar : wallConfig.bWidth;
+            const geom = new THREE.BoxGeometry(w, wallConfig.bHeight - wallConfig.mortar, wallConfig.bDepth);
+            
+            const mesh = new THREE.Mesh(geom, material.clone());
+            mesh.scale.set(0.001, 0.001, 0.001); // Escondido al inicio
 
-            // Iniciar la construcción paso a paso con cada toque
+            const yFinal = r * (wallConfig.bHeight + wallConfig.mortar) + (wallConfig.bHeight / 2);
+
+            wallBricks.push({
+                mesh: mesh,
+                active: false,
+                spawnTime: 0,
+                x: x, y: yFinal, z: 0
+            });
+        }
+
+        function handleUserInteraction(e) {
+            // Evitar clics accidentales si la superficie física real no está lista en WebXR
+            if (!surfacePlaneFound) return;
+
             if (currentBuildIdx < wallBricks.length) {
-                // Añadir el siguiente ladrillo a la escena
-                scene.add(wallBricks[currentBuildIdx].mesh);
-                wallBricks[currentBuildIdx].active = true;
-                wallBricks[currentBuildIdx].buildTime = performance.now();
+                const targetBrick = wallBricks[currentBuildIdx];
+                brickGroup.add(targetBrick.mesh); // Añadir al contenedor
+                targetBrick.active = true;
+                targetBrick.spawnTime = performance.now();
 
                 currentBuildIdx++;
-                buildProgress = currentBuildIdx / wallBricks.length;
-                updateBuildUI();
-
-                // Sonido sintético simple (opcional)
-                const oscillator = renderer.domElement.getContext('webgl2').canvas.parentElement.parentElement.getWebGL2Context().createOscillator();
-                // (Esto es complejo de sintetizar sin audio API, mejor omitir para simplicidad)
+                
+                // Actualizar interfaz
+                const progress = currentBuildIdx / wallBricks.length;
+                arProgressInner.style.width = `${progress * 100}%`;
+                counterTxt.innerText = `${currentBuildIdx} / ${wallBricks.length} Bloques`;
+                
+                if(currentBuildIdx === wallBricks.length) {
+                    actionInstruction.innerText = "¡Muro completado exitosamente!";
+                    guideText.innerText = "ESTRUCTURA CONSTRUIDA";
+                } else {
+                    actionInstruction.innerText = "Sigue tocando para seguir levantando hiladas.";
+                }
             }
         }
 
-        function updateBuildUI() {
-            arProgressInner.style.width = `${buildProgress * 100}%`;
-            xrStatus.innerText = `Construido: ${Math.round(buildProgress * 100)}% (${currentBuildIdx}/${wallBricks.length} bloques)`;
+        function resetWallProgress() {
+            currentBuildIdx = 0;
+            arProgressInner.style.width = "0%";
+            counterTxt.innerText = `0 / ${wallBricks.length} Bloques`;
+            wallBricks.forEach(b => {
+                b.active = false;
+                brickGroup.remove(b.mesh);
+                b.mesh.scale.set(0.001, 0.001, 0.001);
+            });
         }
 
         function onWindowResize() {
@@ -256,168 +325,83 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function animate() {
-            renderer.setAnimationLoop(render); // WebXR requiere esta forma de renderizado
-        }
+        function renderLoop(timestamp, frame) {
+            // 1. Detección de Superficie mediante la API WebXR Hit Test
+            if (frame && !isFallbackMode) {
+                const session = renderer.xr.getSession();
+                if (!hitTestSourceRequested && session) {
+                    session.requestReferenceSpace('viewer').then((space) => {
+                        session.requestHitTestSource({ space: space }).then((source) => {
+                            hitTestSource = source;
+                        });
+                    });
+                    hitTestSourceRequested = true;
+                }
 
-        function render(timestamp, frame) {
-            if (frame) {
-                // Lógica de Detección de Superficie
-                detectSurfaceWithHitTest(frame);
+                if (hitTestSource) {
+                    const referenceSpace = renderer.xr.getReferenceSpace();
+                    const hitTestResults = frame.getHitTestResults(hitTestSource);
+
+                    if (hitTestResults.length > 0) {
+                        const hit = hitTestResults[0];
+                        const pose = hit.getPose(referenceSpace);
+
+                        if (pose) {
+                            if (!surfacePlaneFound) {
+                                surfacePlaneFound = true;
+                                scanReticleUi.style.opacity = '0.3'; // Atenuar círculo de escaneo
+                                guideText.innerText = "¡SUPERFICIE FIJADA!";
+                                actionInstruction.innerText = "TOCA CUALQUIER PARTE DE LA PANTALLA PARA PONER UN LADRILLO";
+                            }
+                            // Mover el punto de anclaje del muro a las coordenadas del piso real detectado
+                            const matrix = new THREE.Matrix4().fromArray(pose.transform.matrix);
+                            brickGroup.matrix.copy(matrix);
+                            brickGroup.matrixAutoUpdate = false;
+                        }
+                    }
+                }
             }
 
-            // Animar la aparición de ladrillos
-            animateBrickAppearance(timestamp);
+            // 2. Rotación leve de la cámara en modo Sandbox de PC para dar tridimensionalidad
+            if (isFallbackMode) {
+                const time = timestamp * 0.0005;
+                camera.position.x = Math.sin(time * 0.5) * 0.3;
+                camera.lookAt(0, -0.1, -0.5);
+            }
+
+            // 3. Animación Interpolada de los Ladrillos (Efecto Caída Amortiguada)
+            const duration = 600; // milisegundos de animación
+            const dropOffset = 0.4; // cae desde 40 cm arriba
+
+            wallBricks.forEach(brick => {
+                if (brick.active) {
+                    const elapsed = timestamp - brick.spawnTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    // Curva matemática de Rebote Elástico (Ease Out Bounce)
+                    const bounceProgress = easeOutBounce(progress);
+
+                    // Interpolación posicional vertical
+                    const currentY = brick.y + (dropOffset * (1 - bounceProgress));
+                    brick.mesh.position.set(brick.x, currentY, brick.z);
+
+                    // Interpolación de tamaño
+                    const scaleFactor = Math.min(1, bounceProgress * 1.3);
+                    brick.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+                    // Efecto de transmutación de color holográfico a terracota
+                    if (progress < 0.25) {
+                        brick.mesh.material.color.setHex(0x00f3ff); // Pulso Neón inicial
+                    } else {
+                        brick.mesh.material.color.lerp(new THREE.Color(0xe07b39), (progress - 0.25) * 1.3);
+                    }
+                }
+            });
 
             renderer.render(scene, camera);
         }
 
-        // Lógica de WebXR Hit Testing para encontrar el plano horizontal
-        function detectSurfaceWithHitTest(frame) {
-            const session = renderer.xr.getSession();
-
-            // Referencia de espacio local (suelo de la experiencia)
-            if (hitTestSourceRequested === false) {
-                session.requestReferenceSpace('viewer').then((referenceSpace) => {
-                    session.requestHitTestSource({ space: referenceSpace }).then((source) => {
-                        hitTestSource = source;
-                    });
-                });
-                hitTestSourceRequested = true;
-            }
-
-            // Si ya tenemos el source, buscar impacto
-            if (hitTestSource) {
-                const referenceSpace = renderer.xr.getReferenceSpace();
-                const hitTestResults = frame.getHitTestResults(hitTestSource);
-
-                if (hitTestResults.length) {
-                    const hit = hitTestResults[0]; // Primer punto de impacto
-
-                    // Obtener la pose del impacto (posición y orientación de la superficie detectada)
-                    const pose = hit.getPose(referenceSpace);
-
-                    if (pose) {
-                        // El plano de superficie se ha encontrado
-                        if (!surfacePlaneFound) {
-                            surfacePlaneFound = true;
-                            xrStatus.innerText = 'Superficie Detectada (Toca para construir)';
-                            xrStatus.style.backgroundColor = 'rgba(0, 150, 255, 0.7)';
-                            uiInstructions.querySelector('h1').innerText = 'Superficie Encontrada!';
-                            uiInstructions.querySelector('p').innerText = 'Un muro se construirá sobre este plano. Toca la pantalla repetidamente.';
-                        }
-
-                        // Guardar la matriz de transformación del plano (donde anclaremos el muro)
-                        // pose.transform.matrix es la posición y orientación de la superficie real
-                        const surfaceMatrix = new THREE.Matrix4().fromArray(pose.transform.matrix);
-                        brickGroup.matrix.copy(surfaceMatrix);
-                        brickGroup.matrixAutoUpdate = false; // El muro se ancla a esta matriz
-                    }
-                }
-            }
-        }
-
-        // Lógica de Generación de la Estructura del Muro (sin renderizar)
-        function generateWallGeometry() {
-            // Material terracota "constructivo"
-            const material = new THREE.MeshPhongMaterial({ color: 0xe07b39, flatShading: true });
-            const geometry = new THREE.BoxGeometry(brickSize.width - brickSize.mortar, brickSize.height - brickSize.mortar, brickSize.depth);
-
-            scene.add(brickGroup); // Añadir el grupo contenedor a la escena, pero sin ladrillos visibles
-
-            let globalIdx = 0;
-            const fullBrickX = brickSize.width + brickSize.mortar;
-            const fullBrickY = brickSize.height + brickSize.mortar;
-
-            for (let row = 0; row < wallDimensions.rows; row++) {
-                // Aparejo a soga: desfase en filas impares
-                const rowDesfase = (row % 2 !== 0) ? (brickSize.width / 2) : 0;
-                const activeCols = (row % 2 !== 0) ? (wallDimensions.cols - 1) : wallDimensions.cols;
-
-                // Añadir medio ladrillo al inicio si hay desfase
-                if (row % 2 !== 0) {
-                    addBrick( - (wallDimensions.width / 2) + (brickSize.width/4), (row * fullBrickY) + (brickSize.height / 2), 0, row, globalIdx, true); // Medio ladrillo
-                    globalIdx++;
-                }
-
-                for (let col = 0; col < activeCols; col++) {
-                    const x = - (wallDimensions.width / 2) + rowDesfase + (col * fullBrickX) + (brickSize.width / 2);
-                    const y = (row * fullBrickY) + (brickSize.height / 2);
-
-                    addBrick(x, y, 0, row, globalIdx, false);
-                    globalIdx++;
-                }
-
-                // Añadir medio ladrillo al final si hay desfase
-                if (row % 2 !== 0) {
-                    addBrick( (wallDimensions.width / 2) - (brickSize.width/4), (row * fullBrickY) + (brickSize.height / 2), 0, row, globalIdx, true); // Medio ladrillo
-                    globalIdx++;
-                }
-            }
-
-            function addBrick(x, y, z, row, idx, isHalf) {
-                // Geometría única para medios ladrillos si aplica
-                let brickGeom = geometry;
-                if (isHalf) {
-                    brickGeom = new THREE.BoxGeometry((brickSize.width / 2) - brickSize.mortar, brickSize.height - brickSize.mortar, brickSize.depth);
-                }
-
-                const mesh = new THREE.Mesh(brickGeom, material.clone());
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-                mesh.scale.set(0.01, 0.01, 0.01); // Iniciar oculto (casi sin escala)
-
-                // Guardar la posición final pero no aplicarla todavía
-                const targetPos = new THREE.Vector3(x, y, z);
-
-                // Almacenar datos del ladrillo para la animación
-                wallBricks.push({
-                    mesh: mesh,
-                    active: false,
-                    buildTime: 0,
-                    finalX: x, finalY: y, finalZ: z,
-                    finalScale: new THREE.Vector3(1, 1, 1)
-                });
-            }
-        }
-
-        // Lógica de Animación de Aparición (Caída + Rebote)
-        function animateBrickAppearance(timestamp) {
-            if (!renderer.xr.isPresenting) return;
-
-            const animationDuration = 800; // ms por ladrillo
-            const fallHeight = 0.3; // metros desde arriba
-
-            wallBricks.forEach(brick => {
-                if (brick.active) {
-                    const elapsed = timestamp - brick.buildTime;
-                    const progress = Math.min(elapsed / animationDuration, 1);
-
-                    // Función de rebote (easeOutBounce) para la posición Y
-                    const easedProgress = easeOutBounce(progress);
-
-                    // Animar la caída desde Y + fallHeight hasta Y final
-                    const animY = brick.finalY + (fallHeight * (1 - easedProgress));
-                    brick.mesh.position.set(brick.finalX, animY, brick.finalZ);
-
-                    // Animar escala para que "brote"
-                    const currentScale = Math.min(1, easedProgress * 1.5);
-                    brick.mesh.scale.set(currentScale, currentScale, currentScale);
-
-                    // Añadir un destello inicial holográfico
-                    if (progress < 0.2) {
-                        brick.mesh.material.color.setHex(0x00f3ff); // Cian holográfico
-                    } else if (progress < 0.5) {
-                        brick.mesh.material.color.setHex(0x0fcc8); // Verde constructivo
-                    } else {
-                        // Volver al terracota original poco a poco
-                        brick.mesh.material.color.lerp(new THREE.Color(0xe07b39), progress);
-                    }
-                }
-            });
-        }
-
-        // Función matemática para simular rebote físico
+        // Función matemática pura para simular física de rebotes elásticos sin motor externo
         function easeOutBounce(x) {
             const n1 = 7.5625;
             const d1 = 2.75;
@@ -431,7 +415,6 @@
                 return n1 * (x -= 2.625 / d1) * x + 0.984375;
             }
         }
-
     </script>
 </body>
 </html>
