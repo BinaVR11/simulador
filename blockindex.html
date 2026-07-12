@@ -2,773 +2,436 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>AR Wall Builder Concept - WebXR Simulator</title>
-    <!-- Tailwind CSS para diseño fluido y ultra-responsivo -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts de estilo futurista / industrial -->
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Iconos Phosphor -->
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>WebXR: Detección de Superficies y Construcción de Muro</title>
     <style>
-        body {
-            font-family: 'Space Grotesk', sans-serif;
-            background-color: #080b10;
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        .code-font {
-            font-family: 'JetBrains Mono', monospace;
-        }
-        /* Efectos de resplandor holográfico táctil */
-        .neon-glow-cyan {
-            text-shadow: 0 0 10px rgba(6, 182, 212, 0.6), 0 0 20px rgba(6, 182, 212, 0.2);
-        }
-        .neon-glow-orange {
-            text-shadow: 0 0 10px rgba(249, 115, 22, 0.6), 0 0 20px rgba(249, 115, 22, 0.2);
-        }
-        .border-glow-cyan {
-            box-shadow: 0 0 15px rgba(6, 182, 212, 0.15), inset 0 0 15px rgba(6, 182, 212, 0.05);
-        }
-        
-        /* Animaciones para el radar del HUD */
-        @keyframes scanline {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100%); }
-        }
-        .scan-overlay::after {
-            content: '';
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
+        canvas { display: block; }
+
+        /* UI de Instrucciones y Estado */
+        #ui-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to bottom, rgba(6,182,212,0) 0%, rgba(6,182,212,0.03) 50%, rgba(6,182,212,0) 100%);
-            animation: scanline 8s linear infinite;
             pointer-events: none;
-            z-index: 5;
+            display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+            color: white; font-family: monospace; text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            z-index: 10; padding-bottom: calc(20px + env(safe-area-inset-bottom));
         }
-        @keyframes pulse-arrow {
-            0%, 100% { opacity: 0.3; transform: translateX(0); }
-            50% { opacity: 1; transform: translateX(8px); }
+
+        #xr-status {
+            background-color: rgba(0, 200, 100, 0.7);
+            color: #000; padding: 8px 16px; border-radius: 20px;
+            font-weight: bold; font-size: 14px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 10px rgba(0, 200, 100, 0.5);
+            backdrop-filter: blur(5px);
         }
-        .pulsing-arrow {
-            animation: pulse-arrow 1.5s infinite ease-in-out;
+
+        #ui-instructions {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 200, 0.2);
+            border-radius: 12px;
+            padding: 20px 30px;
+            text-align: center;
+            max-width: 80%;
+            box-shadow: 0 4px 20px rgba(0, 255, 200, 0.2);
+            transition: opacity 0.5s ease;
         }
-        /* Ocultar barra nativa de entrada de rango en móviles */
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: #06b6d4;
-            cursor: pointer;
-            box-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+
+        #ui-instructions h1 { margin: 0 0 10px; font-size: 1.5rem; color: #0fcc8; }
+        #ui-instructions p { margin: 0 0 15px; font-size: 1rem; color: #a0aec0; }
+        #ar-progress-bar { width: 100%; height: 4px; background-color: rgba(255,255,255,0.1); border-radius: 2px; position: relative; overflow: hidden; }
+        #ar-progress-inner { position: absolute; left: 0; top: 0; height: 100%; background: linear-gradient(90deg, #0fcc8, #00f3ff); width: 0%; transition: width 0.3s ease; }
+
+        /* Botón de AR */
+        #ar-button {
+            position: absolute;
+            bottom: 30px; left: 50%; transform: translateX(-50%);
+            padding: 12px 24px; background: linear-gradient(135deg, #0fcc8, #00f3ff);
+            color: white; border: none; border-radius: 30px;
+            font-size: 16px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 255, 200, 0.4);
+            transition: all 0.2s ease;
+            text-transform: uppercase; letter-spacing: 1px;
         }
+
+        #ar-button:hover { box-shadow: 0 6px 20px rgba(0, 255, 200, 0.6); transform: translateX(-50%) translateY(-2px); }
+        #ar-button:disabled { background: #555; cursor: not-allowed; box-shadow: none; color: #aaa; }
+
     </style>
 </head>
-<body class="w-screen h-screen relative select-none scan-overlay overflow-hidden pb-safe">
+<body>
 
-    <!-- Video de la Cámara del Dispositivo (Fondo AR) -->
-    <video id="webcam-video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover z-0 hidden opacity-0 transition-opacity duration-700"></video>
+    <button id="ar-button">Cargando...</button>
 
-    <!-- Canvas de Renderizado 3D principal -->
-    <div id="canvas-container" class="absolute inset-0 z-10"></div>
-
-    <!-- INTERFAZ FLOTANTE - HUD DE REALIDAD AUMENTADA -->
-    <div class="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-3 sm:p-5 md:p-6">
-        
-        <!-- HEADER: Sistema de telemetría superior adaptado a móviles -->
-        <header class="w-full flex justify-between items-start gap-2">
-            <div class="flex items-center space-x-2.5 pointer-events-auto bg-slate-950/85 backdrop-blur-md border border-cyan-500/25 px-3 py-2 rounded-xl border-glow-cyan max-w-[70%] sm:max-w-none">
-                <div class="relative flex h-2.5 w-2.5 flex-shrink-0">
-                    <span id="ar-pulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                    <span id="ar-status-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
-                </div>
-                <div class="truncate">
-                    <h1 class="text-[10px] sm:text-xs font-bold text-cyan-400 tracking-widest uppercase code-font truncate">WEBXR CAMERA SIMULATOR</h1>
-                    <p id="system-status-text" class="text-[8px] sm:text-[10px] text-slate-400 code-font truncate">STATUS: CALIBRATED // CAMERA: OFF</p>
-                </div>
+    <div id="ui-overlay">
+        <div id="xr-status">WebXR No Disponible</div>
+        <div id="ui-instructions">
+            <h1>WebXR Hit Testing</h1>
+            <p>1. Permite acceso a la cámara. <br> 2. Mueve lentamente tu dispositivo para escanear el suelo. <br> 3. Toca la pantalla cuando detecte la superficie.</p>
+            <div id="ar-progress-bar">
+                <div id="ar-progress-inner"></div>
             </div>
-
-            <!-- Panel de telemetría para tablets y desktop -->
-            <div class="flex flex-col items-end space-y-1 pointer-events-auto bg-slate-950/85 backdrop-blur-md border border-slate-800 px-3 py-2 rounded-xl text-[8px] sm:text-[10px] text-slate-400 code-font">
-                <div>SURFACE: <span id="ar-surface-status" class="text-emerald-400">DETECTED</span></div>
-                <div>TRIANGLES: <span id="telemetry-triangles" class="text-orange-400">0</span></div>
-            </div>
-        </header>
-
-        <!-- RETÍCULA DE CENTRADO DE REALIDAD AUMENTADA (Móvil & Tablet) -->
-        <main class="flex flex-col items-center justify-center space-y-3 my-auto">
-            <!-- Guía de posición central (Retícula AR flotante) -->
-            <div class="relative flex items-center justify-center pointer-events-none opacity-60 sm:opacity-85 scale-[0.7] sm:scale-90 md:scale-100">
-                <!-- Círculo interior reticulado -->
-                <div class="absolute w-28 h-28 sm:w-36 sm:h-36 border border-dashed border-cyan-500/30 rounded-full animate-spin" style="animation-duration: 20s;"></div>
-                <!-- Esquinas de escaneo -->
-                <div class="absolute w-36 h-36 sm:w-44 sm:h-44 border border-cyan-500/20 rounded-3xl"></div>
-                <div class="absolute w-40 h-40 sm:w-48 sm:h-48 bg-transparent">
-                    <div class="absolute top-0 left-0 w-3 h-3 sm:w-4 sm:h-4 border-t-2 border-l-2 border-cyan-400"></div>
-                    <div class="absolute top-0 right-0 w-3 h-3 sm:w-4 sm:h-4 border-t-2 border-r-2 border-cyan-400"></div>
-                    <div class="absolute bottom-0 left-0 w-3 h-3 sm:w-4 sm:h-4 border-b-2 border-l-2 border-cyan-400"></div>
-                    <div class="absolute bottom-0 right-0 w-3 h-3 sm:w-4 sm:h-4 border-b-2 border-r-2 border-cyan-400"></div>
-                </div>
-                <!-- Indicador de alineación -->
-                <div class="absolute w-2 h-2 bg-orange-500 rounded-full neon-glow-orange animate-pulse"></div>
-                
-                <!-- Indicadores Direccionales -->
-                <div class="absolute left-20 sm:left-28 flex items-center space-x-1">
-                    <i class="ph ph-caret-right text-cyan-400 text-sm sm:text-lg pulsing-arrow" style="animation-delay: 0.2s;"></i>
-                    <i class="ph ph-caret-right text-cyan-400 text-sm sm:text-lg pulsing-arrow" style="animation-delay: 0.1s;"></i>
-                    <i class="ph ph-caret-right text-cyan-400 text-sm sm:text-lg pulsing-arrow"></i>
-                </div>
-                <div class="absolute right-20 sm:right-28 flex items-center space-x-1 rotate-180">
-                    <i class="ph ph-caret-right text-cyan-400 text-sm sm:text-lg pulsing-arrow" style="animation-delay: 0.2s;"></i>
-                    <i class="ph ph-caret-right text-cyan-400 text-sm sm:text-lg pulsing-arrow" style="animation-delay: 0.1s;"></i>
-                    <i class="ph ph-caret-right text-cyan-400 text-sm sm:text-lg pulsing-arrow"></i>
-                </div>
-            </div>
-
-            <!-- Leyenda flotante -->
-            <div class="pointer-events-auto bg-slate-950/90 backdrop-blur-md border border-cyan-500/20 px-4 py-2 sm:py-3 rounded-xl shadow-2xl max-w-[280px] sm:max-w-sm text-center">
-                <p class="text-xs sm:text-sm font-semibold text-white tracking-wide">Mueve horizontalmente para construir</p>
-                <p class="text-[9px] sm:text-xs text-cyan-400 mt-0.5 code-font">Arrastra la pantalla o usa el deslizador</p>
-            </div>
-        </main>
-
-        <!-- CONTROLES INFERIORES ADAPTADOS A DISPOSITIVOS MÓVILES -->
-        <footer class="w-full flex flex-col space-y-3 pointer-events-auto">
-            
-            <div class="w-full grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
-                <!-- Panel de Estado / Ladrillos -->
-                <div class="lg:col-span-3 bg-slate-950/90 backdrop-blur-md border border-slate-800 px-4 py-3 rounded-xl flex lg:flex-col justify-between items-center lg:items-start lg:space-y-1.5 text-sm">
-                    <div>
-                        <span class="text-[9px] sm:text-xs text-slate-400 block code-font">LADRILLOS</span>
-                        <span id="brick-counter" class="text-lg sm:text-2xl font-bold text-orange-500 neon-glow-orange code-font">0 / 72</span>
-                    </div>
-                    <div class="text-right lg:text-left">
-                        <span class="text-[9px] sm:text-xs text-slate-400 block code-font">PROGRESO AR</span>
-                        <span id="progress-percentage" class="text-lg sm:text-2xl font-bold text-cyan-400 neon-glow-cyan code-font">0%</span>
-                    </div>
-                </div>
-
-                <!-- Slider Principal de Simulación de Espacio (Tracking) -->
-                <div class="lg:col-span-6 bg-slate-950/95 backdrop-blur-md border border-cyan-500/25 p-3.5 rounded-xl border-glow-cyan">
-                    <div class="flex justify-between items-center mb-1.5">
-                        <div class="flex items-center space-x-2">
-                            <i class="ph ph-aperture text-cyan-400 text-sm animate-spin" style="animation-duration: 8s;"></i>
-                            <span class="text-[10px] text-cyan-400 font-bold code-font tracking-wider">VIRTUAL CAMERA TRACKING</span>
-                        </div>
-                        <span id="coord-display" class="text-[9px] text-slate-400 code-font">X: 0.00m | Y: 0.00m</span>
-                    </div>
-                    <div class="flex items-center space-x-3">
-                        <span class="text-[10px] text-slate-500 font-bold code-font">-X</span>
-                        <div class="relative flex-1">
-                            <input id="tracking-slider" type="range" min="0" max="100" value="0" 
-                                class="w-full h-2.5 bg-slate-800 rounded-lg appearance-none cursor-ew-resize accent-cyan-500 focus:outline-none transition-all">
-                        </div>
-                        <span class="text-[10px] text-slate-500 font-bold code-font">+X</span>
-                    </div>
-                </div>
-
-                <!-- Botones de Acción de Acceso Rápido -->
-                <div class="lg:col-span-3 bg-slate-950/90 backdrop-blur-md border border-slate-800 p-2 rounded-xl flex justify-between items-center gap-1.5">
-                    <!-- Botón de Cámara Real / Virtual -->
-                    <button id="btn-camera" class="flex-1 flex flex-col items-center justify-center p-2 rounded-lg border border-slate-800 hover:border-cyan-500/40 hover:bg-slate-900/50 transition-all text-slate-400 hover:text-cyan-400" title="Activar Cámara del Dispositivo">
-                        <i id="camera-icon" class="ph ph-camera-slash text-base sm:text-lg mb-0.5"></i>
-                        <span class="text-[8px] sm:text-[9px] font-bold code-font">CÁMARA_OFF</span>
-                    </button>
-                    <!-- Botón AutoPlay -->
-                    <button id="btn-autoplay" class="flex-1 flex flex-col items-center justify-center p-2 rounded-lg border border-slate-800 hover:border-cyan-500/40 hover:bg-slate-900/50 transition-all text-slate-400 hover:text-cyan-400" title="Auto-recorrido">
-                        <i class="ph ph-play-circle text-base sm:text-lg mb-0.5"></i>
-                        <span class="text-[8px] sm:text-[9px] font-bold code-font">AUTO-PLAY</span>
-                    </button>
-                    <!-- Botón Sonido -->
-                    <button id="btn-sound" class="flex-1 flex flex-col items-center justify-center p-2 rounded-lg border border-slate-800 hover:border-cyan-500/40 hover:bg-slate-900/50 transition-all text-slate-400 hover:text-cyan-400" title="Audio espacial">
-                        <i id="sound-icon" class="ph ph-speaker-slash text-base sm:text-lg mb-0.5"></i>
-                        <span class="text-[8px] sm:text-[9px] font-bold code-font">AUDIO_OFF</span>
-                    </button>
-                    <!-- Botón Reset -->
-                    <button id="btn-reset" class="flex-1 flex flex-col items-center justify-center p-2 rounded-lg border border-slate-800 hover:border-red-500/40 hover:bg-red-950/20 transition-all text-slate-400 hover:text-red-400" title="Reiniciar">
-                        <i class="ph ph-arrows-counter-clockwise text-base sm:text-lg mb-0.5"></i>
-                        <span class="text-[8px] sm:text-[9px] font-bold code-font">RESET</span>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Pie de página integrado con safe area de pantalla -->
-            <div class="text-[8px] sm:text-[9px] text-slate-600 text-center code-font pb-1">
-                WEBXR RESPONSIVE CAMERA SUITE // CONCEPTUAL AR ENGINE
-            </div>
-        </footer>
-
+        </div>
     </div>
 
-    <!-- Cargadores de Three.js y Tone.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-
-    <script>
-        let scene, camera, renderer, controls;
-        let wallBricks = [];
-        let holographicPlane;
-        let trackingProgress = 0; 
-        let targetProgress = 0;
-        let autoPlay = false;
-        let soundEnabled = false;
-        let cameraEnabled = false;
-        let synthClick, reverb;
-        let webcamStream = null;
-        
-        // Manejadores de interacción táctil en pantalla completa (Alternativa al slider)
-        let isTouchDragging = false;
-        let startTouchX = 0;
-        let startProgress = 0;
-
-        // Estructura dimensional del muro físico
-        const WALL_ROWS = 6;
-        const WALL_COLS = 12;
-        const BRICK_WIDTH = 1.0;
-        const BRICK_HEIGHT = 0.4;
-        const BRICK_DEPTH = 0.5;
-        const JOINT_SPACING = 0.04; 
-        const WALL_TOTAL_WIDTH = WALL_COLS * (BRICK_WIDTH + JOINT_SPACING);
-
-        // Elementos de la UI
-        const videoElement = document.getElementById('webcam-video');
-        const trackingSlider = document.getElementById('tracking-slider');
-        const progressPercentage = document.getElementById('progress-percentage');
-        const brickCounter = document.getElementById('brick-counter');
-        const coordDisplay = document.getElementById('coord-display');
-        const btnCamera = document.getElementById('btn-camera');
-        const cameraIcon = document.getElementById('camera-icon');
-        const btnAutoPlay = document.getElementById('btn-autoplay');
-        const btnSound = document.getElementById('btn-sound');
-        const btnReset = document.getElementById('btn-reset');
-        const telemetryTriangles = document.getElementById('telemetry-triangles');
-        const arPulse = document.getElementById('ar-pulse');
-        const arStatusDot = document.getElementById('ar-status-dot');
-        const systemStatusText = document.getElementById('system-status-text');
-        const surfaceStatus = document.getElementById('ar-surface-status');
-
-        function initAudio() {
-            if (!soundEnabled) return;
-            try {
-                synthClick = new Tone.NoiseSynth({
-                    noise: { type: 'pink' },
-                    envelope: {
-                        attack: 0.003,
-                        decay: 0.1,
-                        sustain: 0.0,
-                        release: 0.05
-                    }
-                });
-                
-                const filter = new Tone.Filter({
-                    frequency: 3000,
-                    type: 'bandpass'
-                });
-
-                reverb = new Tone.Reverb({
-                    roomSize: 0.5,
-                    wet: 0.25,
-                    decay: 1.0
-                }).toDestination();
-
-                synthClick.connect(filter);
-                filter.connect(reverb);
-            } catch (e) {
-                console.warn("No se pudo iniciar Tone.js:", e);
-            }
+    <!-- Scripts de Three.js (Import Map y CDN) -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.150.0/build/three.module.js",
+            "three/examples/jsm/loaders/GLTFLoader.js": "https://unpkg.com/three@0.150.0/examples/jsm/loaders/GLTFLoader.js",
+            "three/examples/jsm/webxr/ARButton.js": "https://unpkg.com/three@0.150.0/examples/jsm/webxr/ARButton.js"
         }
+    }
+    </script>
 
-        function playPlacementSound() {
-            if (!soundEnabled || !synthClick) return;
-            try {
-                if (Tone.context.state !== 'running') {
-                    Tone.start();
-                }
-                synthClick.triggerAttackRelease("32n");
-            } catch (e) {
-                console.warn(e);
-            }
-        }
+    <script type="module">
+        import * as THREE from 'three';
+        import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
 
-        async function toggleCamera() {
-            if (!cameraEnabled) {
-                try {
-                    // Configuración para usar la cámara trasera del móvil (environment)
-                    const constraints = {
-                        video: {
-                            facingMode: 'environment',
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        },
-                        audio: false
-                    };
-                    
-                    webcamStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    videoElement.srcObject = webcamStream;
-                    videoElement.classList.remove('hidden');
-                    videoElement.style.display = 'block';
-                    
-                    // Pequeño timeout para animación de fundido (fade-in)
-                    setTimeout(() => {
-                        videoElement.classList.add('opacity-100');
-                    }, 50);
+        // Variables principales de la Escena y XR
+        let container, camera, scene, renderer, arButtonElement;
+        let xrStatus, uiInstructions, arProgressInner;
 
-                    cameraEnabled = true;
-                    btnCamera.classList.add('border-cyan-500', 'text-cyan-400');
-                    cameraIcon.className = 'ph ph-camera text-base sm:text-lg mb-0.5';
-                    btnCamera.querySelector('span').innerText = 'CÁMARA_ON';
+        // Variables de Detección de Superficie y Lógica
+        let hitTestSource = null;
+        let hitTestSourceRequested = false;
+        let surfacePlaneFound = false;
 
-                    // Actualizar estatus HUD
-                    systemStatusText.innerText = "STATUS: CALIBRATED // CAMERA: FEED_ACTIVE";
-                    arPulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
-                    arStatusDot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500";
-                    surfaceStatus.innerText = "CAMERA_AR";
-                    surfaceStatus.className = "text-emerald-400";
+        // Variables de Construcción de Muro
+        const brickGroup = new THREE.Group();
+        const wallBricks = [];
+        const wallDimensions = { width: 1.2, height: 0.8, depth: 0.05, rows: 8, cols: 6 };
+        const brickSize = { width: 0.2, height: 0.1, depth: 0.05, mortar: 0.01 };
+        let buildProgress = 0; // 0.0 a 1.0
+        let currentBuildIdx = 0;
 
-                    // Hacer fondo transparente en Three.js para ver la webcam
-                    scene.background = null;
-                    renderer.setClearColor(0x000000, 0);
-                    // Ocultar plano de suelo negro pero dejar la rejilla holográfica
-                    if (scene.getObjectByName("opaque-floor")) {
-                        scene.getObjectByName("opaque-floor").visible = false;
-                    }
+        init();
+        animate();
 
-                } catch (err) {
-                    console.error("Error accediendo a la cámara:", err);
-                    alert("No se pudo acceder a la cámara trasera. Asegúrate de dar permisos o de estar en una conexión segura (HTTPS).");
-                    cameraEnabled = false;
-                }
-            } else {
-                // Desactivar cámara y volver a simulación digital
-                if (webcamStream) {
-                    webcamStream.getTracks().forEach(track => track.stop());
-                }
-                videoElement.classList.remove('opacity-100');
-                setTimeout(() => {
-                    videoElement.classList.add('hidden');
-                    videoElement.style.display = 'none';
-                }, 500);
+        function init() {
+            container = document.createElement('div');
+            document.body.appendChild(container);
 
-                cameraEnabled = false;
-                btnCamera.classList.remove('border-cyan-500', 'text-cyan-400');
-                cameraIcon.className = 'ph ph-camera-slash text-base sm:text-lg mb-0.5';
-                btnCamera.querySelector('span').innerText = 'CÁMARA_OFF';
-
-                systemStatusText.innerText = "STATUS: CALIBRATED // CAMERA: OFF";
-                arPulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75";
-                arStatusDot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500";
-                surfaceStatus.innerText = "DETECTED";
-                surfaceStatus.className = "text-cyan-400";
-
-                // Restaurar fondo digital
-                scene.background = null;
-                renderer.setClearColor(0x080b10, 1);
-                if (scene.getObjectByName("opaque-floor")) {
-                    scene.getObjectByName("opaque-floor").visible = true;
-                }
-            }
-        }
-
-        function initThree() {
-            const container = document.getElementById('canvas-container');
-            
+            // 1. Configurar Escena
             scene = new THREE.Scene();
-            // Neblina digital, sólo si no estamos en modo cámara
-            scene.fog = new THREE.FogExp2(0x080b10, 0.04);
 
-            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-            camera.position.set(-5, 4, 8);
+            // 2. Configurar Cámara
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
+            // 3. Configurar Renderizado Transparente para AR
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            renderer.setClearColor(0x080b10, 1);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true; // Activar WebXR
             container.appendChild(renderer.domElement);
 
-            // Controles de cámara optimizados para pantallas táctiles (Orbit)
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.maxPolarAngle = Math.PI / 2 - 0.05; // No permitir pasar por debajo del suelo
-            controls.minDistance = 3;
-            controls.maxDistance = 20;
-            controls.target.set(0, 1.0, 0);
+            // 4. Luces (Iluminación para AR)
+            const light1 = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+            light1.position.set(0.5, 1, 0.25);
+            scene.add(light1);
 
-            // Iluminación espacial
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-            scene.add(ambientLight);
+            const light2 = new THREE.DirectionalLight(0xffffff, 0.5);
+            light2.position.set(0.5, 3, 0.25);
+            light2.castShadow = true;
+            scene.add(light2);
 
-            // Foco de luz principal proyectora
-            const spotLight = new THREE.SpotLight(0xffffff, 2.0);
-            spotLight.position.set(-6, 10, 8);
-            spotLight.angle = Math.PI / 4;
-            spotLight.penumbra = 0.6;
-            spotLight.castShadow = true;
-            spotLight.shadow.mapSize.width = 1024;
-            spotLight.shadow.mapSize.height = 1024;
-            spotLight.shadow.bias = -0.0005;
-            scene.add(spotLight);
+            // 5. Configurar Botón WebXR y Estado de la UI
+            arButtonElement = document.getElementById('ar-button');
+            xrStatus = document.getElementById('xr-status');
+            uiInstructions = document.getElementById('ui-instructions');
+            arProgressInner = document.getElementById('ar-progress-inner');
 
-            // Luz de relleno para equilibrar la sombra
-            const fillLight = new THREE.DirectionalLight(0x06b6d4, 1.5);
-            fillLight.position.set(5, 5, -5);
-            scene.add(fillLight);
+            checkXRCompatibility();
 
-            // Rejilla de escaneo espacial (Holograma del suelo)
-            const gridHelper = new THREE.GridHelper(30, 30, 0x06b6d4, 0x1e293b);
-            gridHelper.position.y = -0.01;
-            scene.add(gridHelper);
+            // 6. Configurar Interacción de Toque (para WebXR)
+            renderer.xr.addEventListener('sessionstart', onXRSessionStart);
+            renderer.xr.addEventListener('sessionend', onXRSessionEnd);
 
-            // Plano opaco del suelo para captar sombras en modo digital
-            const floorGeo = new THREE.PlaneGeometry(50, 50);
-            const floorMat = new THREE.MeshStandardMaterial({
-                color: 0x070a0f,
-                roughness: 0.8,
-                metalness: 0.7
-            });
-            const floor = new THREE.Mesh(floorGeo, floorMat);
-            floor.name = "opaque-floor";
-            floor.rotation.x = -Math.PI / 2;
-            floor.receiveShadow = true;
-            scene.add(floor);
+            // La construcción se inicia con un toque después de encontrar el suelo
+            window.addEventListener('touchstart', onTouchStart, false);
 
-            // Plano móvil del escáner láser AR (Vertical)
-            const holoGeo = new THREE.PlaneGeometry(0.1, 5.0);
-            const holoMat = new THREE.MeshBasicMaterial({
-                color: 0x06b6d4,
-                transparent: true,
-                opacity: 0.5,
-                side: THREE.DoubleSide
-            });
-            holographicPlane = new THREE.Mesh(holoGeo, holoMat);
-            holographicPlane.position.set(0, 2.5, 0.2);
-            scene.add(holographicPlane);
+            // 7. Preparar la estructura del Muro (pero no renderizarlo todavía)
+            generateWallGeometry();
 
-            // Borde láser del escáner
-            const laserLineGeo = new THREE.BoxGeometry(0.02, 5.0, 0.6);
-            const laserLineMat = new THREE.MeshBasicMaterial({
-                color: 0x06b6d4,
-                transparent: true,
-                opacity: 0.8
-            });
-            const laserLine = new THREE.Mesh(laserLineGeo, laserLineMat);
-            holographicPlane.add(laserLine);
-
-            buildWallStructure();
-            updateTelemetryInfo();
-            setupTouchGestures(container);
+            // 8. Event Listener para Redimensionado
+            window.addEventListener('resize', onWindowResize);
         }
 
-        function buildWallStructure() {
-            const brickGeometry = new THREE.BoxGeometry(BRICK_WIDTH, BRICK_HEIGHT, BRICK_DEPTH);
-            
-            // Colores terracota clásicos para diseño constructivo
-            const brickColors = [
-                0xe05a36, 0xd44f2a, 0xe86743, 0xc94723, 0xf0714d
-            ];
-
-            const startX = -((WALL_COLS * (BRICK_WIDTH + JOINT_SPACING)) / 2) + (BRICK_WIDTH / 2);
-
-            for (let r = 0; r < WALL_ROWS; r++) {
-                const isOffsetRow = (r % 2 === 1);
-                const activeCols = isOffsetRow ? WALL_COLS + 1 : WALL_COLS;
-
-                for (let c = 0; c < activeCols; c++) {
-                    let w = BRICK_WIDTH;
-                    let posX = startX + c * (BRICK_WIDTH + JOINT_SPACING);
-                    let isHalfBrick = false;
-
-                    // Ajustar desvíos de fila para patrón soga
-                    if (isOffsetRow) {
-                        if (c === 0) {
-                            w = BRICK_WIDTH / 2 - (JOINT_SPACING / 2);
-                            posX = startX - (BRICK_WIDTH / 4) - (JOINT_SPACING / 4);
-                            isHalfBrick = true;
-                        } else if (c === activeCols - 1) {
-                            w = BRICK_WIDTH / 2 - (JOINT_SPACING / 2);
-                            posX = startX + (c - 1) * (BRICK_WIDTH + JOINT_SPACING) + (BRICK_WIDTH * 0.75) + (JOINT_SPACING * 0.75);
-                            isHalfBrick = true;
-                        } else {
-                            posX = startX + (c - 0.5) * (BRICK_WIDTH + JOINT_SPACING);
-                        }
+        function checkXRCompatibility() {
+            if ('xr' in navigator) {
+                navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+                    if (supported) {
+                        xrStatus.innerText = 'WebXR AR Disponible';
+                        xrStatus.style.backgroundColor = 'rgba(0, 200, 100, 0.7)';
+                        setupARButton();
+                    } else {
+                        xrStatus.innerText = 'Immersive-AR no soportado';
+                        xrStatus.style.backgroundColor = 'rgba(200, 50, 50, 0.7)';
+                        arButtonElement.innerText = 'AR NO DISPONIBLE';
+                        arButtonElement.disabled = true;
                     }
-
-                    const colorPick = brickColors[Math.floor(Math.random() * brickColors.length)];
-                    const material = new THREE.MeshStandardMaterial({
-                        color: colorPick,
-                        roughness: 0.9,
-                        metalness: 0.15,
-                        emissive: 0x000000,
-                        emissiveIntensity: 0
-                    });
-
-                    const geom = isHalfBrick ? new THREE.BoxGeometry(w, BRICK_HEIGHT, BRICK_DEPTH) : brickGeometry;
-                    const brickMesh = new THREE.Mesh(geom, material);
-                    
-                    brickMesh.castShadow = true;
-                    brickMesh.receiveShadow = true;
-                    brickMesh.visible = false; 
-
-                    const targetY = r * (BRICK_HEIGHT + JOINT_SPACING) + (BRICK_HEIGHT / 2);
-                    
-                    wallBricks.push({
-                        id: `${r}-${c}`,
-                        mesh: brickMesh,
-                        targetX: posX,
-                        targetY: targetY,
-                        targetZ: 0,
-                        // El trigger se calcula de 0 a 1 según la posición horizontal del muro
-                        triggerProgress: ((posX + (WALL_TOTAL_WIDTH / 2)) / WALL_TOTAL_WIDTH),
-                        active: false,
-                        animTime: 0
-                    });
-
-                    scene.add(brickMesh);
-                }
-            }
-        }
-
-        function easeOutBounce(t) {
-            const n1 = 7.5625;
-            const d1 = 2.75;
-            
-            if (t < 1 / d1) {
-                return n1 * t * t;
-            } else if (t < 2 / d1) {
-                return n1 * (t -= 1.5 / d1) * t + 0.75;
-            } else if (t < 2.5 / d1) {
-                return n1 * (t -= 2.25 / d1) * t + 0.9375;
+                });
             } else {
-                return n1 * (t -= 2.625 / d1) * t + 0.984375;
+                xrStatus.innerText = 'WebXR no detectado';
+                xrStatus.style.backgroundColor = 'rgba(200, 50, 50, 0.7)';
+                arButtonElement.innerText = 'NAVEGADOR INCOMPATIBLE';
+                arButtonElement.disabled = true;
             }
         }
 
-        function updateTelemetryInfo() {
-            let activeCount = wallBricks.filter(b => b.active).length;
-            brickCounter.innerText = `${activeCount} / ${wallBricks.length}`;
-            telemetryTriangles.innerText = activeCount * 12; // Cada cubo tiene 12 triángulos
-        }
-
-        function setupTouchGestures(element) {
-            // Permitir deslizar el dedo en pantalla para simular movimiento de cámara lateral
-            element.addEventListener('touchstart', (e) => {
-                if (e.touches.length === 1) {
-                    isTouchDragging = true;
-                    startTouchX = e.touches[0].clientX;
-                    startProgress = parseFloat(trackingSlider.value);
-                    autoPlay = false;
-                    btnAutoPlay.classList.remove('border-cyan-500', 'text-cyan-400');
-                    btnAutoPlay.classList.add('border-slate-800', 'text-slate-400');
-                }
-            }, { passive: true });
-
-            element.addEventListener('touchmove', (e) => {
-                if (isTouchDragging && e.touches.length === 1) {
-                    const currentX = e.touches[0].clientX;
-                    const diffX = currentX - startTouchX;
-                    
-                    // Mapear el ancho de pantalla al rango del slider (0-100)
-                    const speedMultiplier = 120 / window.innerWidth; 
-                    let nextProgress = startProgress + (diffX * speedMultiplier);
-                    nextProgress = Math.max(0, Math.min(100, nextProgress));
-                    
-                    trackingSlider.value = nextProgress;
-                    targetProgress = nextProgress / 100;
-                }
-            }, { passive: true });
-
-            element.addEventListener('touchend', () => {
-                isTouchDragging = false;
-            });
-        }
-
-        function updateSimulation(deltaTime) {
-            // Suavizar la transición de la variable de seguimiento para simular inercia espacial
-            trackingProgress += (targetProgress - trackingProgress) * 0.15;
-            
-            const percent = Math.round(trackingProgress * 100);
-            progressPercentage.innerText = `${percent}%`;
-            
-            const currentVirtualX = (trackingProgress * WALL_TOTAL_WIDTH) - (WALL_TOTAL_WIDTH / 2);
-            coordDisplay.innerText = `X: ${currentVirtualX.toFixed(2)}m | Y: 0.00m`;
-
-            // Mapear posición física del plano de escaneo holográfico
-            holographicPlane.position.x = currentVirtualX;
-
-            let stateChanged = false;
-
-            wallBricks.forEach(brick => {
-                // Al sobrepasar la posición horizontal, ensamblar ladrillo
-                if (trackingProgress >= brick.triggerProgress && !brick.active) {
-                    brick.active = true;
-                    brick.mesh.visible = true;
-                    brick.animTime = 0;
-                    stateChanged = true;
-                    
-                    // Resplandor de acoplamiento láser
-                    brick.mesh.material.emissive.setHex(0x06b6d4);
-                    brick.mesh.material.emissiveIntensity = 1.0;
-
-                    playPlacementSound();
-                } 
-                // Al retroceder, disolver en el espacio
-                else if (trackingProgress < brick.triggerProgress && brick.active) {
-                    brick.active = false;
-                    brick.mesh.visible = false;
-                    stateChanged = true;
-                }
-
-                // Animación física de descenso amortiguado
-                if (brick.active && brick.animTime < 1) {
-                    brick.animTime += deltaTime * 1.5; 
-                    if (brick.animTime > 1) brick.animTime = 1;
-
-                    const t = brick.animTime;
-                    
-                    // Escala progresiva
-                    const scaleFactor = Math.min(t * 1.4, 1.0);
-                    brick.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
-
-                    // Rebote vertical
-                    const bounceFactor = easeOutBounce(t);
-                    const spawnHeight = 3.0; // Distancia de caída
-                    brick.mesh.position.y = brick.targetY + (spawnHeight * (1 - bounceFactor));
-                    brick.mesh.position.x = brick.targetX;
-                    brick.mesh.position.z = brick.targetZ;
-
-                    // Atenuar resplandor láser
-                    if (t > 0.4) {
-                        brick.mesh.material.emissiveIntensity = (1 - t) * 2;
-                    }
-                }
+        function setupARButton() {
+            // El módulo ARButton crea su propio botón, pero lo vincularemos al nuestro
+            const arButton = ARButton.createButton(renderer, {
+                optionalFeatures: ['dom-overlay'],
+                domOverlay: { root: document.getElementById('ui-overlay') },
+                requiredFeatures: ['hit-test'] // Requerido para la detección de superficies
             });
 
-            if (stateChanged) {
-                updateTelemetryInfo();
+            // Reemplazar nuestro botón por el nativo de ARButton
+            arButtonElement.style.display = 'none'; // Ocultar el nuestro
+            document.body.appendChild(arButton); // Añadir el nativo (ya gestiona el texto y click)
+            arButton.id = 'webxr-native-button'; // ID para estilo si es necesario (heredará estilos básicos)
+            arButton.style.cssText = arButtonElement.style.cssText; // Copiar estilos visibles
+            arButton.style.display = 'block'; // Mostrar el nativo
+        }
+
+        function onXRSessionStart() {
+            uiInstructions.style.opacity = '1';
+            // Resetear el progreso
+            buildProgress = 0;
+            currentBuildIdx = 0;
+            updateBuildUI();
+        }
+
+        function onXRSessionEnd() {
+            uiInstructions.style.opacity = '0';
+            hitTestSource = null;
+            hitTestSourceRequested = false;
+            surfacePlaneFound = false;
+
+            // Limpiar escena del muro si cerramos AR
+            scene.remove(brickGroup);
+            while (brickGroup.children.length > 0) {
+                const child = brickGroup.children[0];
+                brickGroup.remove(child);
+                child.geometry.dispose();
+                child.material.dispose();
+            }
+            buildProgress = 0;
+            updateBuildUI();
+        }
+
+        function onTouchStart() {
+            if (!surfacePlaneFound || !renderer.xr.isPresenting) return;
+
+            // Iniciar la construcción paso a paso con cada toque
+            if (currentBuildIdx < wallBricks.length) {
+                // Añadir el siguiente ladrillo a la escena
+                scene.add(wallBricks[currentBuildIdx].mesh);
+                wallBricks[currentBuildIdx].active = true;
+                wallBricks[currentBuildIdx].buildTime = performance.now();
+
+                currentBuildIdx++;
+                buildProgress = currentBuildIdx / wallBricks.length;
+                updateBuildUI();
+
+                // Sonido sintético simple (opcional)
+                const oscillator = renderer.domElement.getContext('webgl2').canvas.parentElement.parentElement.getWebGL2Context().createOscillator();
+                // (Esto es complejo de sintetizar sin audio API, mejor omitir para simplicidad)
             }
         }
 
-        let lastTime = 0;
-        function animate(currentTime) {
-            requestAnimationFrame(animate);
+        function updateBuildUI() {
+            arProgressInner.style.width = `${buildProgress * 100}%`;
+            xrStatus.innerText = `Construido: ${Math.round(buildProgress * 100)}% (${currentBuildIdx}/${wallBricks.length} bloques)`;
+        }
 
-            if (!lastTime) lastTime = currentTime;
-            let dt = (currentTime - lastTime) / 1000;
-            if (dt > 0.1) dt = 0.1; 
-            lastTime = currentTime;
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
 
-            // Manejar modo automático
-            if (autoPlay) {
-                let speed = 0.07; // Incremento de progreso por segundo
-                let nextVal = parseFloat(trackingSlider.value) + (speed * 100 * dt);
-                if (nextVal >= 100) {
-                    nextVal = 100;
-                    autoPlay = false;
-                    btnAutoPlay.classList.remove('border-cyan-500', 'text-cyan-400');
-                    btnAutoPlay.classList.add('border-slate-800', 'text-slate-400');
-                }
-                trackingSlider.value = nextVal;
-                targetProgress = nextVal / 100;
+        function animate() {
+            renderer.setAnimationLoop(render); // WebXR requiere esta forma de renderizado
+        }
+
+        function render(timestamp, frame) {
+            if (frame) {
+                // Lógica de Detección de Superficie
+                detectSurfaceWithHitTest(frame);
             }
 
-            updateSimulation(dt);
-            controls.update();
+            // Animar la aparición de ladrillos
+            animateBrickAppearance(timestamp);
+
             renderer.render(scene, camera);
         }
 
-        // Control de entrada de la barra de seguimiento
-        trackingSlider.addEventListener('input', (e) => {
-            targetProgress = e.target.value / 100;
-            if (autoPlay) {
-                autoPlay = false;
-                btnAutoPlay.classList.remove('border-cyan-500', 'text-cyan-400');
-                btnAutoPlay.classList.add('border-slate-800', 'text-slate-400');
+        // Lógica de WebXR Hit Testing para encontrar el plano horizontal
+        function detectSurfaceWithHitTest(frame) {
+            const session = renderer.xr.getSession();
+
+            // Referencia de espacio local (suelo de la experiencia)
+            if (hitTestSourceRequested === false) {
+                session.requestReferenceSpace('viewer').then((referenceSpace) => {
+                    session.requestHitTestSource({ space: referenceSpace }).then((source) => {
+                        hitTestSource = source;
+                    });
+                });
+                hitTestSourceRequested = true;
             }
-        });
 
-        // Activación de la cámara del dispositivo móvil
-        btnCamera.addEventListener('click', () => {
-            toggleCamera();
-        });
+            // Si ya tenemos el source, buscar impacto
+            if (hitTestSource) {
+                const referenceSpace = renderer.xr.getReferenceSpace();
+                const hitTestResults = frame.getHitTestResults(hitTestSource);
 
-        // Habilitación de síntesis de audio espacial (Tone.js)
-        btnSound.addEventListener('click', () => {
-            soundEnabled = !soundEnabled;
-            const icon = document.getElementById('sound-icon');
-            
-            if (soundEnabled) {
-                Tone.start();
-                initAudio();
-                btnSound.classList.add('border-cyan-500', 'text-cyan-400');
-                btnSound.classList.remove('text-slate-400');
-                icon.className = 'ph ph-speaker-high text-base sm:text-lg mb-0.5';
-                btnSound.querySelector('span').innerText = 'AUDIO_ON';
-            } else {
-                btnSound.classList.remove('border-cyan-500', 'text-cyan-400');
-                btnSound.classList.add('text-slate-400');
-                icon.className = 'ph ph-speaker-slash text-base sm:text-lg mb-0.5';
-                btnSound.querySelector('span').innerText = 'AUDIO_OFF';
-            }
-        });
+                if (hitTestResults.length) {
+                    const hit = hitTestResults[0]; // Primer punto de impacto
 
-        // Botón de Autoplay
-        btnAutoPlay.addEventListener('click', () => {
-            autoPlay = !autoPlay;
-            if (autoPlay) {
-                btnAutoPlay.classList.add('border-cyan-500', 'text-cyan-400');
-                btnAutoPlay.classList.remove('text-slate-400');
-                if (trackingSlider.value >= 100) {
-                    resetWall();
+                    // Obtener la pose del impacto (posición y orientación de la superficie detectada)
+                    const pose = hit.getPose(referenceSpace);
+
+                    if (pose) {
+                        // El plano de superficie se ha encontrado
+                        if (!surfacePlaneFound) {
+                            surfacePlaneFound = true;
+                            xrStatus.innerText = 'Superficie Detectada (Toca para construir)';
+                            xrStatus.style.backgroundColor = 'rgba(0, 150, 255, 0.7)';
+                            uiInstructions.querySelector('h1').innerText = 'Superficie Encontrada!';
+                            uiInstructions.querySelector('p').innerText = 'Un muro se construirá sobre este plano. Toca la pantalla repetidamente.';
+                        }
+
+                        // Guardar la matriz de transformación del plano (donde anclaremos el muro)
+                        // pose.transform.matrix es la posición y orientación de la superficie real
+                        const surfaceMatrix = new THREE.Matrix4().fromArray(pose.transform.matrix);
+                        brickGroup.matrix.copy(surfaceMatrix);
+                        brickGroup.matrixAutoUpdate = false; // El muro se ancla a esta matriz
+                    }
                 }
-            } else {
-                btnAutoPlay.classList.remove('border-cyan-500', 'text-cyan-400');
-                btnAutoPlay.classList.add('text-slate-400');
             }
-        });
+        }
 
-        function resetWall() {
-            trackingSlider.value = 0;
-            targetProgress = 0;
-            trackingProgress = 0;
-            
+        // Lógica de Generación de la Estructura del Muro (sin renderizar)
+        function generateWallGeometry() {
+            // Material terracota "constructivo"
+            const material = new THREE.MeshPhongMaterial({ color: 0xe07b39, flatShading: true });
+            const geometry = new THREE.BoxGeometry(brickSize.width - brickSize.mortar, brickSize.height - brickSize.mortar, brickSize.depth);
+
+            scene.add(brickGroup); // Añadir el grupo contenedor a la escena, pero sin ladrillos visibles
+
+            let globalIdx = 0;
+            const fullBrickX = brickSize.width + brickSize.mortar;
+            const fullBrickY = brickSize.height + brickSize.mortar;
+
+            for (let row = 0; row < wallDimensions.rows; row++) {
+                // Aparejo a soga: desfase en filas impares
+                const rowDesfase = (row % 2 !== 0) ? (brickSize.width / 2) : 0;
+                const activeCols = (row % 2 !== 0) ? (wallDimensions.cols - 1) : wallDimensions.cols;
+
+                // Añadir medio ladrillo al inicio si hay desfase
+                if (row % 2 !== 0) {
+                    addBrick( - (wallDimensions.width / 2) + (brickSize.width/4), (row * fullBrickY) + (brickSize.height / 2), 0, row, globalIdx, true); // Medio ladrillo
+                    globalIdx++;
+                }
+
+                for (let col = 0; col < activeCols; col++) {
+                    const x = - (wallDimensions.width / 2) + rowDesfase + (col * fullBrickX) + (brickSize.width / 2);
+                    const y = (row * fullBrickY) + (brickSize.height / 2);
+
+                    addBrick(x, y, 0, row, globalIdx, false);
+                    globalIdx++;
+                }
+
+                // Añadir medio ladrillo al final si hay desfase
+                if (row % 2 !== 0) {
+                    addBrick( (wallDimensions.width / 2) - (brickSize.width/4), (row * fullBrickY) + (brickSize.height / 2), 0, row, globalIdx, true); // Medio ladrillo
+                    globalIdx++;
+                }
+            }
+
+            function addBrick(x, y, z, row, idx, isHalf) {
+                // Geometría única para medios ladrillos si aplica
+                let brickGeom = geometry;
+                if (isHalf) {
+                    brickGeom = new THREE.BoxGeometry((brickSize.width / 2) - brickSize.mortar, brickSize.height - brickSize.mortar, brickSize.depth);
+                }
+
+                const mesh = new THREE.Mesh(brickGeom, material.clone());
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                mesh.scale.set(0.01, 0.01, 0.01); // Iniciar oculto (casi sin escala)
+
+                // Guardar la posición final pero no aplicarla todavía
+                const targetPos = new THREE.Vector3(x, y, z);
+
+                // Almacenar datos del ladrillo para la animación
+                wallBricks.push({
+                    mesh: mesh,
+                    active: false,
+                    buildTime: 0,
+                    finalX: x, finalY: y, finalZ: z,
+                    finalScale: new THREE.Vector3(1, 1, 1)
+                });
+            }
+        }
+
+        // Lógica de Animación de Aparición (Caída + Rebote)
+        function animateBrickAppearance(timestamp) {
+            if (!renderer.xr.isPresenting) return;
+
+            const animationDuration = 800; // ms por ladrillo
+            const fallHeight = 0.3; // metros desde arriba
+
             wallBricks.forEach(brick => {
-                brick.active = false;
-                brick.mesh.visible = false;
-                brick.animTime = 0;
-                brick.mesh.material.emissiveIntensity = 0;
+                if (brick.active) {
+                    const elapsed = timestamp - brick.buildTime;
+                    const progress = Math.min(elapsed / animationDuration, 1);
+
+                    // Función de rebote (easeOutBounce) para la posición Y
+                    const easedProgress = easeOutBounce(progress);
+
+                    // Animar la caída desde Y + fallHeight hasta Y final
+                    const animY = brick.finalY + (fallHeight * (1 - easedProgress));
+                    brick.mesh.position.set(brick.finalX, animY, brick.finalZ);
+
+                    // Animar escala para que "brote"
+                    const currentScale = Math.min(1, easedProgress * 1.5);
+                    brick.mesh.scale.set(currentScale, currentScale, currentScale);
+
+                    // Añadir un destello inicial holográfico
+                    if (progress < 0.2) {
+                        brick.mesh.material.color.setHex(0x00f3ff); // Cian holográfico
+                    } else if (progress < 0.5) {
+                        brick.mesh.material.color.setHex(0x0fcc8); // Verde constructivo
+                    } else {
+                        // Volver al terracota original poco a poco
+                        brick.mesh.material.color.lerp(new THREE.Color(0xe07b39), progress);
+                    }
+                }
             });
-            updateTelemetryInfo();
         }
 
-        btnReset.addEventListener('click', () => {
-            resetWall();
-            btnReset.classList.add('scale-95', 'border-red-500');
-            setTimeout(() => {
-                btnReset.classList.remove('scale-95', 'border-red-500');
-            }, 180);
-        });
-
-        // Reajuste responsivo al cambiar la orientación de móvil / tablet / desktop
-        window.addEventListener('resize', onWindowResize, false);
-
-        function onWindowResize() {
-            const container = document.getElementById('canvas-container');
-            camera.aspect = container.clientWidth / container.clientHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
+        // Función matemática para simular rebote físico
+        function easeOutBounce(x) {
+            const n1 = 7.5625;
+            const d1 = 2.75;
+            if (x < 1 / d1) {
+                return n1 * x * x;
+            } else if (x < 2 / d1) {
+                return n1 * (x -= 1.5 / d1) * x + 0.75;
+            } else if (x < 2.5 / d1) {
+                return n1 * (x -= 2.25 / d1) * x + 0.9375;
+            } else {
+                return n1 * (x -= 2.625 / d1) * x + 0.984375;
+            }
         }
 
-        // Arranque global al inicializar
-        window.onload = function() {
-            initThree();
-            requestAnimationFrame(animate);
-        };
     </script>
 </body>
 </html>
