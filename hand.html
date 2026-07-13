@@ -1,127 +1,925 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Hand Tracker - Cubo de Partículas</title>
+    <!-- Tailwind CSS para diseño moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para iconos de HUD -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Orbitron & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #030712;
+            overflow: hidden;
+        }
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+        /* Efecto de resplandor neón */
+        .neon-border {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+            border: 1px solid rgba(6, 182, 212, 0.5);
+        }
+        .neon-text-cyan {
+            text-shadow: 0 0 8px rgba(6, 182, 212, 0.8);
+        }
+        .neon-text-pink {
+            text-shadow: 0 0 8px rgba(236, 72, 153, 0.8);
+        }
+        /* Ocultar barra de scroll de paneles */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Animación de carga */
+        @keyframes pulse-glow {
+            0%, 100% { transform: scale(1); opacity: 0.6; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+        .pulse-glow {
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+    </style>
 
-<title>Hand Tracking WebAR</title>
+    <!-- Librerías de MediaPipe para Hand Tracking -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
-<style>
-
-html,body{
-margin:0;
-overflow:hidden;
-background:black;
-}
-
-video{
-position:absolute;
-width:100vw;
-height:100vh;
-object-fit:cover;
-transform:scaleX(-1);
-}
-
-canvas{
-position:absolute;
-width:100vw;
-height:100vh;
-pointer-events:none;
-}
-
-</style>
-
+    <!-- Librería Three.js para renderizado 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
+<body class="text-gray-100 min-h-screen relative flex flex-col justify-between select-none">
 
-<body>
+    <!-- Capa de Carga Inicial -->
+    <div id="loading-overlay" class="absolute inset-0 bg-gray-950 z-50 flex flex-col items-center justify-center transition-opacity duration-1000">
+        <div class="text-center p-8 max-w-md">
+            <div class="w-24 h-24 rounded-full border-4 border-cyan-500 border-t-pink-500 animate-spin mx-auto mb-6"></div>
+            <h1 class="font-orbitron text-2xl font-bold text-cyan-400 mb-2 neon-text-cyan">INICIALIZANDO AR</h1>
+            <p class="text-gray-400 text-sm mb-4">Cargando modelos de visión artificial 3D y sistemas de partículas...</p>
+            <div class="w-full bg-gray-800 rounded-full h-2 mb-4 overflow-hidden">
+                <div id="loading-bar" class="bg-gradient-to-r from-cyan-500 to-pink-500 h-full w-0 transition-all duration-300"></div>
+            </div>
+            <p id="loading-status" class="text-xs text-gray-500 font-mono">Cargando dependencias de MediaPipe...</p>
+        </div>
+    </div>
 
-<video id="video" autoplay playsinline></video>
-<canvas id="canvas"></canvas>
+    <!-- Contenedor Principal de la Cámara y el Lienzo 3D (AR Overlay) -->
+    <div class="absolute inset-0 z-0 overflow-hidden bg-black">
+        <!-- El feed de video de la cámara web (espejado para que sea intuitivo) -->
+        <video id="webcam-video" autoplay playsinline muted class="absolute min-w-full min-h-full object-cover scale-x-[-1] opacity-40 transition-opacity duration-500"></video>
+        <!-- Canvas de Three.js donde se renderiza el cubo y las partículas -->
+        <canvas id="canvas-3d" class="absolute inset-0 w-full h-full pointer-events-auto"></canvas>
+    </div>
 
-<script type="module">
+    <!-- Panel Superior de Estado y HUD -->
+    <header class="z-10 w-full p-4 lg:p-6 flex justify-between items-center pointer-events-none">
+        <div class="bg-gray-950/80 backdrop-blur-md p-4 rounded-xl neon-border flex items-center space-x-4 pointer-events-auto">
+            <div class="w-3 h-3 rounded-full bg-cyan-500 pulse-glow" id="status-indicator"></div>
+            <div>
+                <h1 class="font-orbitron text-base lg:text-lg font-bold tracking-wider text-cyan-400">HAND AR // CORE v1.4</h1>
+                <p class="text-xs text-gray-400 font-mono" id="hud-tracking-state">Estado: Inicializando Cámara...</p>
+            </div>
+        </div>
 
-import * as tf from "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js";
+        <div class="flex space-x-2 pointer-events-auto">
+            <button id="btn-toggle-cam" class="bg-gray-900/90 hover:bg-cyan-950 text-white p-3 rounded-xl border border-gray-700 transition duration-300 flex items-center space-x-2 shadow-lg" title="Activar/Desactivar Cámara">
+                <i class="fas fa-video text-cyan-400" id="cam-icon"></i>
+                <span class="text-xs font-mono hidden sm:inline">CÁMARA</span>
+            </button>
+            <button id="btn-toggle-sound" class="bg-gray-900/90 hover:bg-pink-950 text-white p-3 rounded-xl border border-gray-700 transition duration-300 flex items-center space-x-2 shadow-lg" title="Mutear/Desmutear Sonido">
+                <i class="fas fa-volume-up text-pink-400" id="sound-icon"></i>
+                <span class="text-xs font-mono hidden sm:inline">SONIDO</span>
+            </button>
+            <button id="btn-help" class="bg-gray-900/90 hover:bg-gray-800 text-white p-3 rounded-xl border border-gray-700 transition duration-300 shadow-lg">
+                <i class="fas fa-question-circle text-gray-400"></i>
+            </button>
+        </div>
+    </header>
 
-import * as handPoseDetection from "https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection";
+    <!-- Sección Media: Indicador del Gesto en el Centro de la Pantalla -->
+    <div class="z-10 pointer-events-none w-full flex flex-col items-center justify-center flex-grow">
+        <div id="gesture-prompt" class="bg-gray-950/70 backdrop-blur-sm px-6 py-3 rounded-full border border-pink-500/30 text-xs font-mono tracking-widest text-pink-400 transform scale-0 transition-transform duration-300 shadow-xl flex items-center space-x-2">
+            <i class="fas fa-hand-rock animate-pulse"></i>
+            <span>¡PINZA DETECTADA! ARRASTRANDO CUBO</span>
+        </div>
+        
+        <!-- Alerta flotante cuando se usa el mouse como fallback -->
+        <div id="fallback-alert" class="mt-4 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-4 py-2 rounded-lg text-xs font-mono tracking-wide max-w-xs text-center hidden pointer-events-auto">
+            <i class="fas fa-info-circle mr-1"></i> Sin mano en cámara. Haz clic y arrastra para mover el cubo en el espacio virtual.
+        </div>
+    </div>
 
-import "https://cdn.jsdelivr.net/npm/@mediapipe/hands";
+    <!-- Panel de control de Ajustes & Visualizador de Gestos en la Base -->
+    <footer class="z-10 w-full p-4 lg:p-6 flex flex-col md:flex-row justify-between items-end gap-4 pointer-events-none">
+        
+        <!-- Guía de Gestos Interactiva -->
+        <div class="bg-gray-950/85 backdrop-blur-md p-4 rounded-xl neon-border max-w-sm w-full pointer-events-auto">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-orbitron text-xs font-bold text-pink-400 tracking-wider">GUÍA DE MOVIMIENTO AR</h3>
+                <span class="text-[10px] font-mono bg-pink-950 text-pink-400 px-2 py-0.5 rounded border border-pink-500/30">HET-V1</span>
+            </div>
+            
+            <div class="space-y-3">
+                <div class="flex items-start space-x-3 text-xs">
+                    <div class="bg-cyan-950/50 p-2 rounded-lg border border-cyan-500/20 text-cyan-400 shrink-0">
+                        <i class="fas fa-hand-pointer w-4 text-center"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-gray-200">Seguimiento de Índice</p>
+                        <p class="text-gray-400 text-[11px]">La punta del dedo índice proyecta las coordenadas para posicionar el cubo.</p>
+                    </div>
+                </div>
 
-const video=document.getElementById("video");
-const canvas=document.getElementById("canvas");
-const ctx=canvas.getContext("2d");
+                <div class="flex items-start space-x-3 text-xs">
+                    <div class="bg-pink-950/50 p-2 rounded-lg border border-pink-500/20 text-pink-400 shrink-0">
+                        <i class="fas fa-compress-arrows-alt w-4 text-center"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-gray-200">Gesto de Pinza (Pellizcar)</p>
+                        <p class="text-gray-400 text-[11px]">Junta el Pulgar y el Índice para activar la gravedad, cambiar el color del cubo y detonar ráfagas de partículas.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-canvas.width=window.innerWidth;
-canvas.height=window.innerHeight;
+        <!-- Panel de Ajustes en Tiempo Real (Configuración del Cubo y Partículas) -->
+        <div class="bg-gray-950/85 backdrop-blur-md p-4 rounded-xl neon-border max-w-md w-full no-scrollbar overflow-y-auto max-h-[250px] pointer-events-auto">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-orbitron text-xs font-bold text-cyan-400 tracking-wider">CONFIGURACIÓN EN CALIENTE</h3>
+                <button id="btn-reset-settings" class="text-[10px] font-mono text-gray-400 hover:text-cyan-400 transition">
+                    <i class="fas fa-sync-alt mr-1"></i>REINICIAR
+                </button>
+            </div>
 
-const stream=await navigator.mediaDevices.getUserMedia({
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <!-- Color del Cubo -->
+                <div>
+                    <label class="block text-gray-400 mb-1 font-mono uppercase text-[10px]">Esquema de Color</label>
+                    <select id="setting-cube-color" class="w-full bg-gray-900 border border-gray-700 rounded p-1.5 text-gray-200 focus:outline-none focus:border-cyan-500 font-mono text-[11px]">
+                        <option value="cyan">Cyberpunk Cyan</option>
+                        <option value="pink">Laser Pink</option>
+                        <option value="gold">Nebula Gold</option>
+                        <option value="matrix">Matrix Green</option>
+                        <option value="rainbow">Holograma Arcoíris</option>
+                    </select>
+                </div>
 
-video:{
-facingMode:"environment"
-}
+                <!-- Cantidad de Partículas -->
+                <div>
+                    <div class="flex justify-between text-[10px] font-mono text-gray-400 mb-1">
+                        <span>LÍMITE DE PARTÍCULAS</span>
+                        <span id="label-particle-count">2000</span>
+                    </div>
+                    <input type="range" id="setting-particle-count" min="500" max="4000" step="250" value="2000" class="w-full h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                </div>
 
-});
+                <!-- Velocidad / Fuerza de Partículas -->
+                <div>
+                    <div class="flex justify-between text-[10px] font-mono text-gray-400 mb-1">
+                        <span>PRESIÓN / VELOCIDAD</span>
+                        <span id="label-particle-speed">Medium</span>
+                    </div>
+                    <input type="range" id="setting-particle-speed" min="1" max="3" step="1" value="2" class="w-full h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                </div>
 
-video.srcObject=stream;
+                <!-- Tamaño del Cubo -->
+                <div>
+                    <div class="flex justify-between text-[10px] font-mono text-gray-400 mb-1">
+                        <span>ESCALA DEL NÚCLEO</span>
+                        <span id="label-cube-scale">1.0x</span>
+                    </div>
+                    <input type="range" id="setting-cube-scale" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                </div>
+            </div>
 
-await new Promise(r=>video.onloadedmetadata=r);
+            <!-- Parámetro de Sensibilidad / Modo de Seguimiento -->
+            <div class="mt-3 pt-3 border-t border-gray-800 flex justify-between items-center text-[10px] font-mono text-gray-400">
+                <span>SUAVIDAD DE FILTRADO (LERP)</span>
+                <div class="flex space-x-2">
+                    <button id="btn-lerp-low" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 hover:border-cyan-500 transition">RÁPIDO</button>
+                    <button id="btn-lerp-mid" class="px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/50 text-cyan-400 transition">NORMAL</button>
+                    <button id="btn-lerp-high" class="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 hover:border-cyan-500 transition">SUAVE</button>
+                </div>
+            </div>
+        </div>
+    </footer>
 
-await tf.ready();
+    <!-- Modal de Ayuda Inicial -->
+    <div id="help-modal" class="fixed inset-0 bg-black/80 z-40 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300">
+        <div class="bg-gray-950 p-6 rounded-2xl max-w-lg w-full neon-border text-center relative">
+            <button id="btn-close-help" class="absolute top-4 right-4 text-gray-500 hover:text-white transition">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+            <h2 class="font-orbitron text-xl font-bold text-cyan-400 mb-4 neon-text-cyan flex items-center justify-center gap-2">
+                <i class="fas fa-cube text-pink-500"></i> BIENVENIDO A AR PARTICLES
+            </h2>
+            <div class="text-left space-y-4 text-sm text-gray-300 mb-6">
+                <p>Esta aplicación detecta tus manos a través de la cámara web mediante visión artificial, permitiéndote interactuar físicamente con objetos virtuales y ráfagas de partículas reactivas.</p>
+                <div class="border-y border-gray-800 py-3 space-y-2">
+                    <p class="font-bold text-pink-400 text-xs font-mono uppercase">Requerimientos e instrucciones:</p>
+                    <ul class="list-disc list-inside space-y-1 text-xs text-gray-400">
+                        <li>Otorga permisos de uso de cámara si se te solicita.</li>
+                        <li>Coloca tu mano a unos 40cm-1m de distancia de tu webcam.</li>
+                        <li>Mueve tu dedo <strong>índice</strong> para reubicar el cubo tridimensional.</li>
+                        <li><strong>Gesto de Pinza:</strong> Junta las puntas de tus dedos pulgar e índice. Verás una reacción de gravedad y explosión cuántica de partículas con sonido sintetizado.</li>
+                        <li>Si no cuentas con cámara web, puedes arrastrar con el mouse en el lienzo.</li>
+                    </ul>
+                </div>
+                <div class="bg-cyan-950/20 p-3 rounded-lg border border-cyan-500/30 text-xs text-cyan-400">
+                    <i class="fas fa-shield-alt mr-2"></i><strong>Privacidad Garantizada:</strong> El procesamiento del video se realiza 100% de manera local en tu navegador. Ninguna imagen es enviada a servidores externos.
+                </div>
+            </div>
+            <button id="btn-start-experience" class="w-full bg-gradient-to-r from-cyan-500 to-pink-500 hover:from-cyan-400 hover:to-pink-400 text-black font-orbitron font-bold py-3 rounded-xl shadow-lg transition duration-300 tracking-wider">
+                INICIAR EXPERIENCIA DE AR
+            </button>
+        </div>
+    </div>
 
-const detector=await handPoseDetection.createDetector(
+    <script>
+        /* Inicializar el cargador visual de dependencias */
+        const loadBar = document.getElementById('loading-bar');
+        const loadStatus = document.getElementById('loading-status');
+        const loadOverlay = document.getElementById('loading-overlay');
+        
+        let progress = 0;
+        function updateProgress(value, statusText) {
+            progress = Math.max(progress, value);
+            loadBar.style.width = `${progress}%`;
+            loadStatus.innerText = statusText;
+            if (progress >= 100) {
+                setTimeout(() => {
+                    loadOverlay.classList.add('opacity-0');
+                    setTimeout(() => loadOverlay.remove(), 1000);
+                }, 800);
+            }
+        }
+        updateProgress(20, 'Cargando módulos esenciales...');
 
-handPoseDetection.SupportedModels.MediaPipeHands,
+        // Configuración de Audio con Web Audio API (Sintetizador Sci-Fi Integrado)
+        let audioCtx = null;
+        let isMuted = false;
 
-{
+        function initAudio() {
+            if (audioCtx) return;
+            // Soporte multiplataforma para Web Audio
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+        }
 
-runtime:"mediapipe",
+        function playSciFiBeep(frequency, duration, type = 'sine', volumeVal = 0.1) {
+            if (isMuted || !audioCtx) return;
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = type;
+                osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+                // Rampas de tono para efectos de barrido o chirrido futurista
+                if (type === 'sawtooth' || type === 'triangle') {
+                    osc.frequency.exponentialRampToValueAtTime(frequency * 0.2, audioCtx.currentTime + duration);
+                }
 
-modelType:"full",
+                gain.gain.setValueAtTime(volumeVal, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
 
-solutionPath:"https://cdn.jsdelivr.net/npm/@mediapipe/hands"
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                console.warn('Error al reproducir audio interactivo:', e);
+            }
+        }
 
-}
+        // Eventos para mutear/desmutear sonido
+        const btnToggleSound = document.getElementById('btn-toggle-sound');
+        const soundIcon = document.getElementById('sound-icon');
+        btnToggleSound.addEventListener('click', () => {
+            isMuted = !isMuted;
+            if (isMuted) {
+                soundIcon.className = 'fas fa-volume-mute text-gray-500';
+            } else {
+                soundIcon.className = 'fas fa-volume-up text-pink-400';
+                initAudio();
+                playSciFiBeep(600, 0.1, 'sine');
+            }
+        });
 
-);
+        updateProgress(40, 'Configurando espacio virtual tridimensional...');
+        
+        const canvas = document.getElementById('canvas-3d');
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
 
-async function render(){
+        const scene = new THREE.Scene();
+        // Cámara con campo de visión amplio
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 8;
 
-ctx.clearRect(0,0,canvas.width,canvas.height);
+        // Configuración de Luces para dar volumen y realismo al cubo
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
 
-const hands=await detector.estimateHands(video);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 7);
+        scene.add(dirLight);
 
-ctx.drawImage(video,0,0,canvas.width,canvas.height);
+        const pointLightCyan = new THREE.PointLight(0x06b6d4, 2, 12);
+        pointLightCyan.position.set(-2, 2, 2);
+        scene.add(pointLightCyan);
 
-ctx.fillStyle="lime";
+        const pointLightPink = new THREE.PointLight(0xec4899, 2, 12);
+        pointLightPink.position.set(2, -2, 2);
+        scene.add(pointLightPink);
 
-ctx.strokeStyle="cyan";
+        // Geometría del Cubo compuesto (Estructura Cyberpunk)
+        // Cubo exterior de cristal translúcido
+        const outerGeo = new THREE.BoxGeometry(1.6, 1.6, 1.6);
+        const outerMat = new THREE.MeshPhysicalMaterial({
+            color: 0x06b6d4,
+            transparent: true,
+            opacity: 0.25,
+            roughness: 0.1,
+            metalness: 0.1,
+            transmission: 0.6,
+            ior: 1.5,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const outerCube = new THREE.Mesh(outerGeo, outerMat);
+        scene.add(outerCube);
 
-ctx.lineWidth=3;
+        // Estructura de alambre (Wireframe) neón
+        const wireframeGeo = new THREE.BoxGeometry(1.61, 1.61, 1.61);
+        const wireframeMat = new THREE.MeshBasicMaterial({
+            color: 0x06b6d4,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.6
+        });
+        const cubeWireframe = new THREE.Mesh(wireframeGeo, wireframeMat);
+        outerCube.add(cubeWireframe);
 
-for(const hand of hands){
+        // Núcleo interno denso y brillante
+        const innerGeo = new THREE.OctahedronGeometry(0.7, 0);
+        const innerMat = new THREE.MeshStandardMaterial({
+            color: 0xec4899,
+            emissive: 0xec4899,
+            emissiveIntensity: 1.5,
+            roughness: 0.2,
+            metalness: 0.8
+        });
+        const innerCore = new THREE.Mesh(innerGeo, innerMat);
+        outerCube.add(innerCore);
 
-for(const point of hand.keypoints){
+        // Grupo principal del Cubo para rotar y trasladar
+        const targetCubePos = new THREE.Vector3(0, 0, 0);
+        let lerpFactor = 0.12; // Suavizado por defecto
 
-const x=(point.x/video.videoWidth)*canvas.width;
+        updateProgress(65, 'Sintetizando generador cuántico de partículas...');
 
-const y=(point.y/video.videoHeight)*canvas.height;
+        const MAX_PARTICULAS = 4000;
+        let activeParticlesLimit = 2000;
+        const particlePositions = new Float32Array(MAX_PARTICULAS * 3);
+        const particleColors = new Float32Array(MAX_PARTICULAS * 3);
+        const particleSizes = new Float32Array(MAX_PARTICULAS);
+        
+        // Estructura de metadatos de partículas para simulación de físicas individuales
+        const particleMetadata = [];
+        for (let i = 0; i < MAX_PARTICULAS; i++) {
+            particleMetadata.push({
+                active: false,
+                vx: 0, vy: 0, vz: 0,
+                life: 0,
+                maxLife: 0,
+                baseSize: 0,
+                colorType: 'cyan'
+            });
+            // Ocultar inicialmente enviando lejos
+            particlePositions[i * 3] = 9999;
+            particlePositions[i * 3 + 1] = 9999;
+            particlePositions[i * 3 + 2] = 9999;
+        }
 
-ctx.beginPath();
+        const particleGeometry = new THREE.BufferGeometry();
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        particleGeometry.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
+        particleGeometry.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1));
 
-ctx.arc(canvas.width-x,y,6,0,Math.PI*2);
+        // Textura procedural tipo destello circular para las partículas
+        const pCanvas = document.createElement('canvas');
+        pCanvas.width = 16;
+        pCanvas.height = 16;
+        const pCtx = pCanvas.getContext('2d');
+        const gradient = pCtx.createRadialGradient(8, 8, 0, 8, 8, 8);
+        gradient.addColorStop(0, 'rgba(255,255,255,1)');
+        gradient.addColorStop(0.3, 'rgba(255,255,255,0.8)');
+        gradient.addColorStop(0.6, 'rgba(0,180,255,0.2)');
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+        pCtx.fillStyle = gradient;
+        pCtx.fillRect(0, 0, 16, 16);
+        const particleTexture = new THREE.CanvasTexture(pCanvas);
 
-ctx.fill();
+        const particleMaterial = new THREE.PointsMaterial({
+            size: 0.15,
+            map: particleTexture,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            vertexColors: true
+        });
 
-}
+        const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+        scene.add(particleSystem);
 
-}
+        let particleVelocityMultiplier = 1.0;
 
-requestAnimationFrame(render);
+        // Función para detonar ráfagas de partículas
+        function spawnParticles(origin, count, isPinch = false) {
+            let spawned = 0;
+            // Configurar gama de color según el ajuste activo
+            const colorOption = document.getElementById('setting-cube-color').value;
 
-}
+            for (let i = 0; i < activeParticlesLimit; i++) {
+                if (spawned >= count) break;
+                if (!particleMetadata[i].active) {
+                    particleMetadata[i].active = true;
+                    
+                    // Origen aleatorio en volumen pequeño en torno a la coordenada
+                    const r = isPinch ? 0.35 : 0.15;
+                    particlePositions[i * 3] = origin.x + (Math.random() - 0.5) * r;
+                    particlePositions[i * 3 + 1] = origin.y + (Math.random() - 0.5) * r;
+                    particlePositions[i * 3 + 2] = origin.z + (Math.random() - 0.5) * r;
 
-render();
+                    // Dinámica orbital o explosión
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = (isPinch ? (0.05 + Math.random() * 0.12) : (0.01 + Math.random() * 0.04)) * particleVelocityMultiplier;
+                    
+                    particleMetadata[i].vx = Math.cos(angle) * speed + (Math.random() - 0.5) * 0.01;
+                    particleMetadata[i].vy = Math.sin(angle) * speed + (Math.random() - 0.5) * 0.01;
+                    particleMetadata[i].vz = (Math.random() - 0.5) * speed;
 
-</script>
+                    particleMetadata[i].life = 0;
+                    particleMetadata[i].maxLife = isPinch ? (40 + Math.random() * 50) : (20 + Math.random() * 30);
+                    particleMetadata[i].baseSize = isPinch ? (0.25 + Math.random() * 0.35) : (0.08 + Math.random() * 0.15);
 
+                    // Colores vibrantes AR
+                    let color = new THREE.Color();
+                    if (colorOption === 'cyan') {
+                        color.setHSL(0.5 + Math.random() * 0.08, 0.9, 0.5 + Math.random() * 0.2);
+                    } else if (colorOption === 'pink') {
+                        color.setHSL(0.9 + Math.random() * 0.08, 0.9, 0.5 + Math.random() * 0.2);
+                    } else if (colorOption === 'gold') {
+                        color.setHSL(0.12 + Math.random() * 0.05, 0.95, 0.5);
+                    } else if (colorOption === 'matrix') {
+                        color.setHSL(0.33 + Math.random() * 0.05, 0.95, 0.5);
+                    } else { // Rainbow
+                        color.setHSL(Math.random(), 0.9, 0.6);
+                    }
+
+                    particleColors[i * 3] = color.r;
+                    particleColors[i * 3 + 1] = color.g;
+                    particleColors[i * 3 + 2] = color.b;
+
+                    spawned++;
+                }
+            }
+            particleGeometry.attributes.position.needsUpdate = true;
+            particleGeometry.attributes.color.needsUpdate = true;
+        }
+
+        updateProgress(80, 'Vinculando algoritmos de Hand Tracking...');
+
+        const videoElement = document.getElementById('webcam-video');
+        let trackingActive = true;
+        let isPinching = false;
+        let handDetected = false;
+
+        // Configurar modelo MediaPipe
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
+        });
+
+        // Proyección matemática de coordenadas normalizadas de pantalla 2D a plano virtual 3D
+        function mapScreenToThreeSpace(x, y) {
+            // Reflejamos en eje X porque la cámara está espejada
+            const mirroredX = (1 - x) * 2 - 1;
+            const mappedY = -(y * 2 - 1);
+            
+            const vector = new THREE.Vector3(mirroredX, mappedY, 0.5);
+            vector.unproject(camera);
+            const dir = vector.sub(camera.position).normalize();
+            const distance = -camera.position.z / dir.z; // Plano Z = 0
+            
+            return camera.position.clone().add(dir.multiplyScalar(distance));
+        }
+
+        // Procesamiento en tiempo real de los resultados del Tracking de Manos
+        hands.onResults((results) => {
+            const trackingStateLabel = document.getElementById('hud-tracking-state');
+            const statusIndicator = document.getElementById('status-indicator');
+            const gesturePrompt = document.getElementById('gesture-prompt');
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                if (!handDetected) {
+                    handDetected = true;
+                    statusIndicator.className = "w-3 h-3 rounded-full bg-pink-500 pulse-glow animate-ping";
+                    trackingStateLabel.innerHTML = "Estado: <span class='text-cyan-400 font-bold'>MANO EN CUADRO</span>";
+                    document.getElementById('fallback-alert').classList.add('hidden');
+                    playSciFiBeep(880, 0.15, 'triangle', 0.05);
+                }
+
+                const landmarks = results.multiHandLandmarks[0];
+                
+                // Landmark 8: Punta de dedo Índice
+                const indexTip = landmarks[8];
+                // Landmark 4: Punta de dedo Pulgar
+                const thumbTip = landmarks[4];
+
+                // Convertir posición del índice a nuestro sistema 3D
+                const indexPosition3D = mapScreenToThreeSpace(indexTip.x, indexTip.y);
+                targetCubePos.copy(indexPosition3D);
+
+                // Calcular la distancia euclidiana 3D para detectar el pellizco (Pinch)
+                const dx = indexTip.x - thumbTip.x;
+                const dy = indexTip.y - thumbTip.y;
+                const dz = indexTip.z - thumbTip.z;
+                const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                // Límite empírico de proximidad de dedos para disparar el evento
+                const PINCH_THRESHOLD = 0.05;
+
+                if (distance < PINCH_THRESHOLD) {
+                    if (!isPinching) {
+                        isPinching = true;
+                        gesturePrompt.classList.remove('scale-0');
+                        gesturePrompt.classList.add('scale-100');
+                        
+                        // Efecto de gravedad / compresión en el cubo
+                        outerCube.scale.set(0.7, 0.7, 0.7);
+                        // Sonido agudo sintetizado de compresión
+                        playSciFiBeep(1200, 0.3, 'sawtooth', 0.12);
+                    }
+                    // Detonar continuamente ráfagas masivas de partículas en pinza
+                    spawnParticles(outerCube.position, 15, true);
+                } else {
+                    if (isPinching) {
+                        isPinching = false;
+                        gesturePrompt.classList.remove('scale-100');
+                        gesturePrompt.classList.add('scale-0');
+                        
+                        // Restaurar escala normal con pequeña elasticidad
+                        outerCube.scale.set(1.15, 1.15, 1.15);
+                        setTimeout(() => outerCube.scale.set(1.0, 1.0, 1.0), 150);
+                        // Sonido descendente al liberar
+                        playSciFiBeep(450, 0.25, 'triangle', 0.08);
+                    }
+                    // Estela normal de movimiento pasivo
+                    if (Math.random() < 0.6) {
+                        spawnParticles(outerCube.position, 2, false);
+                    }
+                }
+
+            } else {
+                // Si se pierde de vista la mano
+                if (handDetected) {
+                    handDetected = false;
+                    statusIndicator.className = "w-3 h-3 rounded-full bg-yellow-500 pulse-glow";
+                    trackingStateLabel.innerHTML = "Estado: <span class='text-yellow-400'>BUSCANDO MANO...</span>";
+                    document.getElementById('fallback-alert').classList.remove('hidden');
+                    
+                    if (isPinching) {
+                        isPinching = false;
+                        gesturePrompt.classList.remove('scale-100');
+                        gesturePrompt.classList.add('scale-0');
+                        outerCube.scale.set(1.0, 1.0, 1.0);
+                    }
+                }
+            }
+        });
+
+        let isMouseDown = false;
+        
+        function onPointerMove(event) {
+            if (handDetected) return; // Priorizar visión por computadora
+
+            // Normalización de coordenadas
+            const x = event.clientX / window.innerWidth;
+            const y = event.clientY / window.innerHeight;
+
+            const mappedPos = mapScreenToThreeSpace(x, y);
+            targetCubePos.copy(mappedPos);
+
+            // Generar rastro pasivo por mouse
+            if (Math.random() < 0.5) {
+                spawnParticles(outerCube.position, 1, false);
+            }
+            if (isMouseDown) {
+                spawnParticles(outerCube.position, 5, true);
+            }
+        }
+
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                onPointerMove(e.touches[0]);
+            }
+        });
+
+        window.addEventListener('mousedown', () => {
+            if (handDetected) return;
+            isMouseDown = true;
+            outerCube.scale.set(0.7, 0.7, 0.7);
+            initAudio();
+            playSciFiBeep(1000, 0.2, 'sawtooth', 0.08);
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (handDetected) return;
+            isMouseDown = false;
+            outerCube.scale.set(1.0, 1.0, 1.0);
+            playSciFiBeep(500, 0.2, 'triangle', 0.05);
+        });
+
+        updateProgress(90, 'Solicitando interfaz del hardware de cámara...');
+
+        let activeCamera = null;
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: "user"
+                    }
+                });
+                videoElement.srcObject = stream;
+                videoElement.classList.remove('opacity-0');
+                videoElement.classList.add('opacity-40');
+                
+                activeCamera = new Camera(videoElement, {
+                    onFrame: async () => {
+                        if (trackingActive) {
+                            await hands.send({ image: videoElement });
+                        }
+                    },
+                    width: 1280,
+                    height: 720
+                });
+                activeCamera.start();
+                updateProgress(100, 'Motor AR Listo.');
+            } catch (err) {
+                console.warn('Acceso denegado a la cámara o hardware no disponible. Activando fallback de ratón.', err);
+                document.getElementById('hud-tracking-state').innerHTML = "Estado: <span class='text-yellow-500'>FALLBACK RATÓN ACTIVO</span>";
+                document.getElementById('status-indicator').className = "w-3 h-3 rounded-full bg-yellow-500 pulse-glow";
+                document.getElementById('fallback-alert').classList.remove('hidden');
+                
+                // Ocultar video feed
+                videoElement.classList.add('opacity-0');
+                updateProgress(100, 'Iniciado con Fallback de Mouse.');
+            }
+        }
+
+        // Interruptor del Botón de Cámara en el HUD
+        const btnToggleCam = document.getElementById('btn-toggle-cam');
+        const camIcon = document.getElementById('cam-icon');
+        btnToggleCam.addEventListener('click', () => {
+            trackingActive = !trackingActive;
+            if (trackingActive) {
+                camIcon.className = "fas fa-video text-cyan-400";
+                videoElement.style.opacity = "0.4";
+            } else {
+                camIcon.className = "fas fa-video-slash text-gray-500";
+                videoElement.style.opacity = "0";
+                document.getElementById('hud-tracking-state').innerHTML = "Estado: <span class='text-gray-500'>CÁMARA INACTIVA</span>";
+            }
+        });
+
+        // Controladores del Panel de Ajustes
+        const cubeColorSelect = document.getElementById('setting-cube-color');
+        const particleCountSlider = document.getElementById('setting-particle-count');
+        const particleCountLabel = document.getElementById('label-particle-count');
+        const particleSpeedSlider = document.getElementById('setting-particle-speed');
+        const particleSpeedLabel = document.getElementById('label-particle-speed');
+        const cubeScaleSlider = document.getElementById('setting-cube-scale');
+        const cubeScaleLabel = document.getElementById('label-cube-scale');
+
+        // Sintonizar colores del material en tiempo real
+        cubeColorSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            let colorHex = 0x06b6d4;
+            let emissiveHex = 0xec4899;
+
+            if (val === 'pink') {
+                colorHex = 0xec4899;
+                emissiveHex = 0x3b82f6;
+            } else if (val === 'gold') {
+                colorHex = 0xeab308;
+                emissiveHex = 0xf97316;
+            } else if (val === 'matrix') {
+                colorHex = 0x22c55e;
+                emissiveHex = 0x15803d;
+            } else if (val === 'rainbow') {
+                colorHex = 0xff00ff;
+                emissiveHex = 0x00ffff;
+            }
+
+            outerMat.color.setHex(colorHex);
+            cubeWireframe.material.color.setHex(colorHex);
+            innerMat.color.setHex(emissiveHex);
+            innerMat.emissive.setHex(emissiveHex);
+        });
+
+        particleCountSlider.addEventListener('input', (e) => {
+            activeParticlesLimit = parseInt(e.target.value);
+            particleCountLabel.innerText = activeParticlesLimit;
+        });
+
+        particleSpeedSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            if (val === 1) {
+                particleSpeedLabel.innerText = 'Lento';
+                particleVelocityMultiplier = 0.5;
+            } else if (val === 2) {
+                particleSpeedLabel.innerText = 'Medio';
+                particleVelocityMultiplier = 1.0;
+            } else {
+                particleSpeedLabel.innerText = 'Fuerte';
+                particleVelocityMultiplier = 1.8;
+            }
+        });
+
+        cubeScaleSlider.addEventListener('input', (e) => {
+            const scale = parseFloat(e.target.value);
+            cubeScaleLabel.innerText = `${scale.toFixed(1)}x`;
+            outerCube.scale.set(scale, scale, scale);
+        });
+
+        // Configuración de Suavizado (Lerp)
+        const btnLerpLow = document.getElementById('btn-lerp-low');
+        const btnLerpMid = document.getElementById('btn-lerp-mid');
+        const btnLerpHigh = document.getElementById('btn-lerp-high');
+
+        function selectLerpButton(activeBtn) {
+            [btnLerpLow, btnLerpMid, btnLerpHigh].forEach(btn => {
+                btn.className = "px-2 py-0.5 rounded bg-gray-900 border border-gray-800 hover:border-cyan-500 transition";
+            });
+            activeBtn.className = "px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/50 text-cyan-400 transition";
+        }
+
+        btnLerpLow.addEventListener('click', () => { lerpFactor = 0.25; selectLerpButton(btnLerpLow); });
+        btnLerpMid.addEventListener('click', () => { lerpFactor = 0.12; selectLerpButton(btnLerpMid); });
+        btnLerpHigh.addEventListener('click', () => { lerpFactor = 0.05; selectLerpButton(btnLerpHigh); });
+
+        // Restablecer ajustes por defecto
+        document.getElementById('btn-reset-settings').addEventListener('click', () => {
+            cubeColorSelect.value = 'cyan';
+            cubeColorSelect.dispatchEvent(new Event('change'));
+            
+            particleCountSlider.value = 2000;
+            particleCountSlider.dispatchEvent(new Event('input'));
+
+            particleSpeedSlider.value = 2;
+            particleSpeedSlider.dispatchEvent(new Event('input'));
+
+            cubeScaleSlider.value = 1.0;
+            cubeScaleSlider.dispatchEvent(new Event('input'));
+
+            lerpFactor = 0.12;
+            selectLerpButton(btnLerpMid);
+            
+            playSciFiBeep(700, 0.15, 'sine');
+        });
+
+        // Eventos de Ventanas de Ayuda
+        const helpModal = document.getElementById('help-modal');
+        document.getElementById('btn-help').addEventListener('click', () => {
+            helpModal.classList.remove('hidden');
+            helpModal.classList.add('flex');
+        });
+        document.getElementById('btn-close-help').addEventListener('click', () => {
+            helpModal.classList.remove('flex');
+            helpModal.classList.add('hidden');
+        });
+        document.getElementById('btn-start-experience').addEventListener('click', () => {
+            helpModal.classList.remove('flex');
+            helpModal.classList.add('hidden');
+            initAudio();
+            playSciFiBeep(440, 0.2, 'sine');
+            startCamera();
+        });
+
+        const positionAttribute = particleGeometry.attributes.position;
+        const sizeAttribute = particleGeometry.attributes.size;
+        let clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            const time = clock.getElapsedTime();
+
+            // Rotación constante del Cubo (con velocidades distintas para el núcleo y la corteza)
+            outerCube.rotation.y += 0.008;
+            outerCube.rotation.x += 0.005;
+            innerCore.rotation.z -= 0.02;
+            innerCore.rotation.y -= 0.01;
+
+            // Variación armónica del color si está seleccionado "Rainbow"
+            if (cubeColorSelect.value === 'rainbow') {
+                const hue = (time * 0.1) % 1.0;
+                outerMat.color.setHSL(hue, 0.9, 0.5);
+                cubeWireframe.material.color.setHSL(hue, 0.9, 0.5);
+                innerMat.color.setHSL((hue + 0.5) % 1.0, 0.9, 0.5);
+                innerMat.emissive.setHSL((hue + 0.5) % 1.0, 0.9, 0.5);
+            }
+
+            // Interpolación de posición (Lerp) para movimiento súper fluido del cubo en AR
+            outerCube.position.lerp(targetCubePos, lerpFactor);
+
+            // Simulación física de partículas (Gravedad, resistencia y desvanecimiento)
+            for (let i = 0; i < activeParticlesLimit; i++) {
+                if (particleMetadata[i].active) {
+                    particleMetadata[i].life += 1;
+                    
+                    if (particleMetadata[i].life >= particleMetadata[i].maxLife) {
+                        // Desactivar partícula y mandarla lejos
+                        particleMetadata[i].active = false;
+                        particlePositions[i * 3] = 9999;
+                        particlePositions[i * 3 + 1] = 9999;
+                        particlePositions[i * 3 + 2] = 9999;
+                    } else {
+                        // Coeficiente de atenuación de vida
+                        const lifeRatio = 1.0 - (particleMetadata[i].life / particleMetadata[i].maxLife);
+                        
+                        // Si hay pinza activa, simular atracción gravitatoria leve hacia el centro del cubo
+                        if (isPinching || isMouseDown) {
+                            const dx = outerCube.position.x - particlePositions[i * 3];
+                            const dy = outerCube.position.y - particlePositions[i * 3 + 1];
+                            const dz = outerCube.position.z - particlePositions[i * 3 + 2];
+                            particleMetadata[i].vx += dx * 0.0005;
+                            particleMetadata[i].vy += dy * 0.0005;
+                            particleMetadata[i].vz += dz * 0.0005;
+                        }
+
+                        // Resistencia del aire o arrastre viscoso
+                        particleMetadata[i].vx *= 0.96;
+                        particleMetadata[i].vy *= 0.96;
+                        particleMetadata[i].vz *= 0.96;
+
+                        // Actualizar coordenadas
+                        particlePositions[i * 3] += particleMetadata[i].vx;
+                        particlePositions[i * 3 + 1] += particleMetadata[i].vy;
+                        particlePositions[i * 3 + 2] += particleMetadata[i].vz;
+
+                        // Reducir tamaño gradualmente
+                        particleSizes[i] = particleMetadata[i].baseSize * lifeRatio;
+                    }
+                }
+            }
+
+            // Forzar actualización de arrays en tarjeta gráfica
+            positionAttribute.needsUpdate = true;
+            sizeAttribute.needsUpdate = true;
+
+            // Renderizar la escena
+            renderer.render(scene, camera);
+        }
+
+        // Controlar redimensión de ventana de forma adaptativa
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Lanzar el ciclo de animación global en la carga del documento
+        window.onload = function() {
+            animate();
+        };
+
+    </script>
 </body>
 </html>
