@@ -2,1056 +2,782 @@
 <html lang="es" class="h-full">
 <head>
     <meta charset="UTF-8">
+    <!-- Vista responsive nativa indispensable para el correcto escalado táctil en iOS y Android -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>¡Espejo de Emociones Mágico! ✨</title>
+    <title>WebXR Space Sandbox - Ultra Responsive</title>
     
-    <!-- Tailwind CSS para diseño moderno -->
+    <!-- Tailwind CSS para layouts utilitarios y responsive rápidos -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome para iconos táctiles intuitivos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Configuración personalizada de Tailwind para un tema futurista y premium -->
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: {
-                        magic: {
-                            bg: '#FAF5FF', // Lavanda ultra claro
-                            dark: '#2E1065', // Morado profundo amigable
-                            panel: 'rgba(255, 255, 255, 0.85)', // Glassmorphism claro y tierno
-                            pink: '#FF75B5', // Rosa chicle
-                            purple: '#8B5CF6', // Violeta mágico
-                            yellow: '#FBBF24', // Amarillo feliz
-                            mint: '#34D399', // Verde menta suave
-                            blue: '#38BDF8' // Azul cielo
-                        }
-                    },
                     fontFamily: {
-                        friendly: ['Fredoka', 'sans-serif']
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        cyber: {
+                            bg: '#05050a',
+                            panel: 'rgba(10, 10, 20, 0.75)',
+                            border: 'rgba(255, 255, 255, 0.1)',
+                            accent: '#00f0ff',
+                            neonPink: '#ff007f',
+                            success: '#00ff66'
+                        }
                     }
                 }
             }
         }
     </script>
 
-    <!-- Google Fonts con fuente súper amigable y redondeada -->
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Librerías de Terceros vía CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" crossorigin="anonymous"></script>
-
     <style>
-        body {
-            font-family: 'Fredoka', sans-serif;
-            background-color: #FAF5FF;
-            overflow: hidden;
-            user-select: none;
+        /* Deshabilitar selección de texto y comportamientos de arrastre nativos en móvil */
+        * {
             -webkit-tap-highlight-color: transparent;
-        }
-        
-        /* Efecto de burbujas de fondo */
-        .bubble-bg {
-            background: radial-gradient(circle at 20% 20%, rgba(255, 117, 181, 0.15) 0%, transparent 40%),
-                        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 40%);
+            user-select: none;
+            box-sizing: border-box;
+            outline: none;
         }
 
-        /* Sombras suaves y esponjosas (tipo nube) */
-        .cloud-shadow {
-            box-shadow: 0 15px 30px -10px rgba(139, 92, 246, 0.15);
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #05050a;
+            color: #ffffff;
         }
-        
-        .bouncy-hover:active {
+
+        /* Estilos premium de Glassmorphism adaptados a rendimiento móvil */
+        .glass-panel {
+            background: rgba(10, 10, 20, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Asegurar áreas de botones táctiles óptimas (mínimo 48px según la pauta) */
+        .touch-button {
+            min-width: 48px;
+            min-height: 48px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .touch-button:active {
             transform: scale(0.92);
-        }
-        
-        #webcam-container {
-            transform: scaleX(-1);
+            filter: brightness(1.2);
         }
 
-        /* Animación suave para elementos flotantes */
-        @keyframes gentle-float {
-            0% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-8px) rotate(1deg); }
-            100% { transform: translateY(0px) rotate(0deg); }
+        /* Personalización de barra de scroll para paneles con scroll interno */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
         }
-        .float-cute {
-            animation: gentle-float 4s ease-in-out infinite;
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        /* Simulador WebXR estereoscópico para móviles sin gafas físicas */
+        .vr-mode-split canvas {
+            width: 50% !important;
+            height: 100% !important;
+            float: left;
         }
     </style>
 </head>
-<body class="h-full w-full relative select-none bubble-bg">
+<body class="font-sans antialiased">
 
-    <!-- SCREEN 1: Bienvenida interactiva y tierna -->
-    <div id="landing-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-between p-6 bg-gradient-to-b from-purple-50 via-pink-50 to-purple-100 overflow-y-auto">
+    <!-- Contenedor del Canvas 3D (Ocupa 100% de la pantalla de forma adaptativa) -->
+    <div id="canvas-container" class="absolute inset-0 w-full h-full z-0 overflow-hidden"></div>
+
+    <!-- UI Overlay principal -->
+    <div id="ui-container" class="absolute inset-0 w-full h-full z-10 flex flex-col justify-between pointer-events-none p-4 md:p-6 select-none">
         
-        <!-- Elementos decorativos animados en las esquinas -->
-        <div class="absolute top-10 left-10 text-4xl float-cute" style="animation-delay: 0s;">✨</div>
-        <div class="absolute top-20 right-12 text-3xl float-cute" style="animation-delay: 1.5s;">🎈</div>
-        <div class="absolute bottom-24 left-8 text-3xl float-cute" style="animation-delay: 0.7s;">🌸</div>
-        
-        <div class="w-full max-w-md flex flex-col items-center text-center mt-8">
-            <!-- Icono de Mascota de Bienvenida -->
-            <div class="relative mb-6">
-                <div class="w-28 h-28 rounded-full bg-gradient-to-tr from-magic-pink to-magic-purple flex items-center justify-center cloud-shadow border-4 border-white animate-bounce" style="animation-duration: 2.5s;">
-                    <span class="text-5xl">🥰</span>
+        <!-- TOP BAR: Monitor de Rendimiento y Adaptación en tiempo real -->
+        <header class="w-full flex flex-wrap gap-3 items-center justify-between pointer-events-auto z-20">
+            <!-- Título y Estado -->
+            <div class="glass-panel rounded-xl px-4 py-2 flex items-center gap-3">
+                <div class="relative flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
                 </div>
-                <div class="absolute -bottom-1 bg-magic-yellow text-magic-dark font-bold px-3 py-1 text-xs rounded-full border-2 border-white tracking-wider">
-                    ¡HOLA! ✨
+                <div>
+                    <h1 class="text-xs md:text-sm font-bold uppercase tracking-wider text-white">Quantum Sandbox</h1>
+                    <p class="text-[9px] text-gray-400 tracking-normal" id="orientation-status">Modo Vertical</p>
                 </div>
             </div>
 
-            <h1 class="text-3xl font-extrabold text-magic-dark leading-tight">
-                Espejo Mágico <br><span class="text-magic-pink text-4xl">de Emociones</span>
-            </h1>
-            <p class="text-slate-600 text-sm mt-3 px-6 max-w-sm font-medium">
-                ¡Descubre qué dice tu rostro hoy! Activa la cámara para que tu nuevo amiguito de gelatina imite tus expresiones y sonrisas. 🎉
-            </p>
-        </div>
-
-        <!-- Caja de Compromiso de Seguridad e Instrucción -->
-        <div class="w-full max-w-md bg-white/80 backdrop-blur-md rounded-2xl p-5 border-2 border-purple-100 text-sm text-slate-700 space-y-3 cloud-shadow">
-            <div class="flex items-center space-x-2 text-magic-purple font-bold border-b border-purple-100 pb-2">
-                <span>🌈 ¿CÓMO JUGAR?</span>
-            </div>
-            <div class="flex items-start space-x-2 text-xs font-medium">
-                <span class="text-magic-pink text-base leading-none">⭐</span>
-                <p>Necesitamos permiso de tu cámara para ver tus hermosos gestos.</p>
-            </div>
-            <div class="flex items-start space-x-2 text-xs font-medium">
-                <span class="text-magic-pink text-base leading-none">⭐</span>
-                <p>Tu privacidad está a salvo: todo se procesa aquí mismo en tu móvil.</p>
-            </div>
-            <div class="flex items-start space-x-2 text-xs font-medium">
-                <span class="text-magic-pink text-base leading-none">⭐</span>
-                <p>¡Sube el volumen para escuchar los tiernos sonidos mágicos!</p>
-            </div>
-        </div>
-
-        <!-- Botones de Acción -->
-        <div class="w-full max-w-md mb-8 flex flex-col items-center">
-            <button id="btn-start" class="w-full bg-gradient-to-r from-magic-pink to-magic-purple text-white font-bold text-xl py-4 px-8 rounded-full shadow-lg hover:shadow-pink-300/50 transform hover:scale-105 active:scale-95 transition-all duration-200 tracking-wide bouncy-hover border-b-4 border-purple-700">
-                ¡Encender Cámara! 📸
-            </button>
-            <p class="text-slate-400 text-[11px] mt-3 font-semibold tracking-wider text-center uppercase">
-                ¡Fácil, divertido y 100% seguro!
-            </p>
-        </div>
-    </div>
-
-    <!-- SCREEN 2: Pantalla de Carga Cariñosa -->
-    <div id="loading-screen" class="hidden absolute inset-0 z-40 flex flex-col items-center justify-center bg-gradient-to-tr from-purple-100 to-pink-100 p-6">
-        <div class="relative w-36 h-36 flex items-center justify-center">
-            <!-- Anillos suaves de colores rotatorios -->
-            <div class="absolute w-full h-full rounded-full border-4 border-white/40 border-t-magic-pink animate-spin"></div>
-            <div class="absolute w-4/5 h-4/5 rounded-full border-4 border-white/40 border-b-magic-yellow animate-spin" style="animation-direction: reverse; animation-duration: 2s;"></div>
-            <span class="text-magic-dark text-2xl font-bold animate-pulse" id="loading-percent">0%</span>
-        </div>
-        <div class="mt-8 text-center max-w-sm">
-            <h2 id="loading-status" class="text-magic-purple text-lg font-bold">Invocando a tu amiguito...</h2>
-            <div class="w-60 bg-white/80 h-3 rounded-full mt-3 overflow-hidden mx-auto p-0.5 border border-purple-200 shadow-inner">
-                <div id="loading-bar" class="h-full bg-gradient-to-r from-magic-pink to-magic-yellow rounded-full transition-all duration-300" style="width: 0%"></div>
-            </div>
-            <p id="loading-log" class="text-slate-500 text-xs font-semibold mt-2 h-4 overflow-hidden truncate uppercase"></p>
-        </div>
-    </div>
-
-    <!-- SCREEN 3: Aplicación Principal -->
-    <main id="app-container" class="hidden h-full w-full relative">
-
-        <!-- Contenedores de Video y Renderizado WebGL -->
-        <div class="absolute inset-0 z-0 overflow-hidden bg-purple-50">
-            <!-- Cámara oculta que procesará MediaPipe -->
-            <video id="webcam" class="absolute object-cover w-full h-full hidden" autoplay playsinline muted></video>
-            <!-- Canvas principal para AR (Fondo espejo con render 3D) -->
-            <canvas id="ar-canvas" class="absolute top-0 left-0 w-full h-full object-cover"></canvas>
-        </div>
-
-        <!-- Capa del HUD Interactiva -->
-        <div class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
-
-            <!-- Cabecera amigable -->
-            <header class="w-full flex justify-between items-center pointer-events-auto">
-                <div class="bg-magic-panel backdrop-blur-md border border-white/60 rounded-full px-4 py-1.5 flex items-center space-x-3 text-magic-dark text-xs shadow-md">
-                    <div class="flex items-center space-x-1.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-magic-mint animate-ping"></span>
-                        <span class="w-2.5 h-2.5 rounded-full bg-magic-mint absolute"></span>
-                        <span class="font-bold text-magic-purple">MÁGICO ACTIVE</span>
-                    </div>
-                    <span class="text-slate-300">|</span>
-                    <button id="btn-toggle-mesh" class="text-magic-pink font-bold bg-white/90 hover:bg-white px-3 py-1 rounded-full border border-pink-100 shadow-sm transition">
-                        Filtro: Brillantinas ✨
-                    </button>
-                </div>
-
-                <div class="bg-magic-panel backdrop-blur-md border border-white/60 rounded-full px-4 py-2 text-magic-dark text-xs font-bold shadow-md">
-                    FPS: <span id="hud-fps" class="text-magic-purple">--</span>
-                </div>
-            </header>
-
-            <!-- Telemetría Amigable (Panel de gestos izquierdo - Oculto en móviles pequeños para liberar espacio) -->
-            <section class="hidden md:flex flex-col space-y-2 max-w-[240px] pointer-events-auto self-start">
-                <div class="bg-magic-panel backdrop-blur-md border border-white/60 rounded-3xl p-5 text-magic-dark shadow-md">
-                    <h3 class="text-magic-purple font-bold text-sm mb-3 border-b border-purple-100 pb-1.5 flex justify-between items-center">
-                        <span>Mis Gestos ✨</span>
-                        <span class="text-lg">🍭</span>
-                    </h3>
-                    <div class="space-y-3 text-xs" id="telemetry-values">
-                        <div>
-                            <div class="flex justify-between text-slate-600 font-semibold mb-1">
-                                <span>Sonrisa Mágica 💛</span>
-                                <span id="tel-smile-pct">0%</span>
-                            </div>
-                            <div class="w-full bg-slate-100 h-2.5 rounded-full p-0.5 border border-slate-200/50">
-                                <div id="tel-smile-bar" class="h-full bg-magic-yellow rounded-full" style="width: 0%"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-slate-600 font-semibold mb-1">
-                                <span>Boca Sorprendida 😮</span>
-                                <span id="tel-jaw-pct">0%</span>
-                            </div>
-                            <div class="w-full bg-slate-100 h-2.5 rounded-full p-0.5 border border-slate-200/50">
-                                <div id="tel-jaw-bar" class="h-full bg-magic-blue rounded-full" style="width: 0%"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-slate-600 font-semibold mb-1">
-                                <span>Concentración / Enfadado 😠</span>
-                                <span id="tel-frown-pct">0%</span>
-                            </div>
-                            <div class="w-full bg-slate-100 h-2.5 rounded-full p-0.5 border border-slate-200/50">
-                                <div id="tel-frown-bar" class="h-full bg-magic-pink rounded-full" style="width: 0%"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-slate-600 font-semibold mb-1">
-                                <span>Cejas arriba 🚀</span>
-                                <span id="tel-brow-pct">0%</span>
-                            </div>
-                            <div class="w-full bg-slate-100 h-2.5 rounded-full p-0.5 border border-slate-200/50">
-                                <div id="tel-brow-bar" class="h-full bg-magic-mint rounded-full" style="width: 0%"></div>
-                            </div>
-                        </div>
+            <!-- Panel Diagnóstico Activo (Auto-detección de Hardware) -->
+            <div class="glass-panel rounded-xl px-4 py-2 flex items-center gap-4 text-xs">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-microchip text-cyan-400"></i>
+                    <div>
+                        <span class="block text-[8px] text-gray-400 uppercase">Hardware</span>
+                        <span id="detected-device" class="font-semibold text-gray-200">Detectando...</span>
                     </div>
                 </div>
-            </section>
+                <div class="h-6 w-[1px] bg-white/10"></div>
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-gauge-high text-emerald-400"></i>
+                    <div>
+                        <span class="block text-[8px] text-gray-400 uppercase">Rendimiento</span>
+                        <span id="fps-counter" class="font-semibold text-emerald-400">-- FPS</span>
+                    </div>
+                </div>
+                <div class="h-6 w-[1px] bg-white/10"></div>
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-star-of-life text-pink-500"></i>
+                    <div>
+                        <span class="block text-[8px] text-gray-400 uppercase">Partículas</span>
+                        <span id="active-particles" class="font-semibold text-gray-200">0</span>
+                    </div>
+                </div>
+            </div>
+        </header>
 
-            <!-- Panel de Análisis Emocional Flotante (Principal inferior) -->
-            <footer class="w-full max-w-md mx-auto pointer-events-auto flex flex-col space-y-3">
+        <!-- PANEL LATERAL DE CONTROL (Desktop) / MENÚ DESPLEGABLE INFERIOR (Mobile) -->
+        <main class="w-full flex-grow flex items-end md:items-center justify-start md:justify-end py-4 pointer-events-none">
+            <!-- Panel con adaptabilidad responsive flexible (se colapsa en móvil, ancho fijo en desktop) -->
+            <div id="control-panel" class="glass-panel pointer-events-auto rounded-2xl w-full md:w-80 lg:w-96 max-h-[50vh] md:max-h-[80vh] overflow-y-auto p-4 md:p-6 flex flex-col gap-4 transition-transform duration-300">
                 
-                <!-- Burbuja de consejos tiernos -->
-                <div class="bg-white/90 backdrop-blur-md border-2 border-pink-100 px-4 py-2 rounded-2xl shadow-sm text-xs text-slate-700 flex items-center space-x-2">
-                    <span class="text-base">💡</span>
-                    <span id="hud-tips" class="font-medium">¡Guiña un ojito, sonríe en grande o abre la boca para divertirte!</span>
+                <!-- Encabezado del panel -->
+                <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-cyan-400"></i>
+                        <h2 class="font-bold text-sm uppercase tracking-wider text-white">Configuración 3D</h2>
+                    </div>
+                    <span id="quality-badge" class="bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">
+                        Cargando...
+                    </span>
                 </div>
 
-                <!-- Tarjeta Principal de Expresión -->
-                <div class="bg-magic-panel backdrop-blur-lg border-2 border-white rounded-3xl p-5 text-magic-dark shadow-xl relative overflow-hidden">
-                    <!-- Glow Dinámico de Fondo con colores pasteles -->
-                    <div id="dynamic-glow" class="absolute -right-16 -bottom-16 w-36 h-36 rounded-full bg-magic-pink/20 blur-2xl transition-all duration-700"></div>
-
-                    <!-- Cabecera de la emoción traducida -->
-                    <div class="flex justify-between items-start mb-3 relative z-10">
-                        <div>
-                            <span class="text-xs font-bold text-magic-purple uppercase tracking-wider">🌟 TRADUCTOR DE CARITAS 🌟</span>
-                            <h2 class="text-2xl font-bold tracking-tight text-magic-dark mt-0.5" id="trans-title">¡Calibrando tu rostro!</h2>
+                <!-- Controles de simulación -->
+                <div class="flex flex-col gap-4 text-xs">
+                    
+                    <!-- Densidad de partículas -->
+                    <div>
+                        <div class="flex justify-between mb-1 text-gray-300">
+                            <span>Densidad de Partículas</span>
+                            <span id="lbl-particle-density">0</span>
                         </div>
-                        <div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-4xl border-2 border-purple-100 shadow-md transform -rotate-3" id="trans-emoji">
-                            🧸
+                        <input type="range" id="slider-particles" min="100" max="15000" step="100" value="1000" class="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                        <span class="text-[9px] text-gray-500 mt-1 block">Ajustado automáticamente según tu procesador.</span>
+                    </div>
+
+                    <!-- Gravedad/Atracción -->
+                    <div>
+                        <div class="flex justify-between mb-1 text-gray-300">
+                            <span>Fuerza Gravitacional</span>
+                            <span id="lbl-gravity">0.5</span>
+                        </div>
+                        <input type="range" id="slider-gravity" min="0" max="2" step="0.1" value="0.5" class="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                    </div>
+
+                    <!-- Selector de Paleta Estelar -->
+                    <div>
+                        <span class="block mb-2 text-gray-300">Esquema de Color Cósmico</span>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="setCosmicTheme('cyberpunk')" class="touch-button rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 text-[10px] uppercase font-semibold active:bg-cyan-500/20">
+                                Neon City
+                            </button>
+                            <button onclick="setCosmicTheme('supernova')" class="touch-button rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-300 text-[10px] uppercase font-semibold active:bg-amber-500/20">
+                                Supernova
+                            </button>
+                            <button onclick="setCosmicTheme('deepspace')" class="touch-button rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-[10px] uppercase font-semibold active:bg-emerald-500/20">
+                                Nebula
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Nivel de fuerza/confianza de la carita -->
-                    <div class="mb-4 relative z-10">
-                        <div class="flex justify-between text-xs text-slate-600 font-bold mb-1">
-                            <span>¡FUERZA DEL GESTO!</span>
-                            <span id="trans-confidence" class="text-magic-pink">0%</span>
-                        </div>
-                        <div class="w-full bg-slate-100 h-3 rounded-full p-0.5 border border-slate-200/50 shadow-inner">
-                            <div id="trans-confidence-bar" class="h-full bg-gradient-to-r from-magic-purple to-magic-pink rounded-full transition-all duration-300" style="width: 0%"></div>
-                        </div>
+                    <!-- Parámetros Avanzados / Estado de Sombras -->
+                    <div class="flex justify-between items-center bg-white/5 p-2 rounded-lg">
+                        <span class="text-gray-400 text-[11px]">Renderizador de Sombras</span>
+                        <span id="shadows-status" class="text-xs font-semibold text-gray-300">Inactivo (Móvil)</span>
                     </div>
-
-                    <!-- Interpretación Super Divertida -->
-                    <div class="bg-white/85 rounded-2xl p-4 border border-purple-100/50 relative z-10 shadow-sm">
-                        <p class="text-xs text-magic-purple font-bold uppercase tracking-wider mb-1">🍭 LO QUE DICE TU CARITA:</p>
-                        <p class="text-sm text-slate-700 font-medium leading-relaxed" id="trans-desc">Ubícate frente a la cámara con una gran iluminación. ¡A tu amiguito virtual le encantará conocerte!</p>
-                    </div>
-
-                    <p class="text-[9px] text-slate-400 font-bold text-center mt-3 uppercase tracking-wider">
-                        Lectura de caritas súper divertida. ¡Es una estimación juguetona, no un diagnóstico real!
-                    </p>
                 </div>
-            </footer>
-        </div>
-    </main>
+            </div>
+        </main>
+
+        <!-- BARRA ACCIONES RÁPIDAS (Optimización Táctil en base, botones grandes con margen óptimo) -->
+        <footer class="w-full flex items-center justify-between pointer-events-auto z-20 gap-4">
+            
+            <!-- Botón Colapsar Panel (Muy útil en móvil) -->
+            <button id="btn-toggle-panel" class="touch-button w-12 h-12 rounded-xl glass-panel text-white hover:text-cyan-400">
+                <i class="fa-solid fa-chevron-right transition-transform" id="panel-chevron"></i>
+            </button>
+
+            <!-- Acciones Principales en Pantallas -->
+            <div class="flex gap-3">
+                <!-- Botón de Reiniciar -->
+                <button onclick="resetSimulation()" class="touch-button px-5 h-12 rounded-xl glass-panel text-white font-semibold text-xs flex items-center gap-2 hover:border-cyan-400 active:scale-95">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span class="hidden sm:inline">Reiniciar</span>
+                </button>
+
+                <!-- Botón WebXR (Virtual Reality / Sensor Giroscopio) -->
+                <button id="btn-webxr" class="touch-button px-6 h-12 rounded-xl bg-gradient-to-r from-cyan-500 to-pink-500 hover:from-cyan-400 hover:to-pink-400 text-white font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-pink-500/20">
+                    <i class="fa-solid fa-vr-cardboard text-base"></i>
+                    <span id="webxr-text">Iniciar XR</span>
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Mensaje Toast Personalizado (Evitamos alertas nativas que rompen flujo UX) -->
+    <div id="toast-message" class="absolute bottom-20 left-1/2 transform -translate-x-1/2 glass-panel border border-cyan-500/30 rounded-xl px-4 py-2 text-xs font-medium text-cyan-300 opacity-0 pointer-events-none transition-opacity duration-300 z-50 text-center">
+        Dispositivo adaptado con éxito
+    </div>
+
+    <!-- Librerías 3D de alto rendimiento para simulación e interacción -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
     <script>
-        /* ==========================================
-           1. CLASE SINTETIZADORA DE SONIDO (AUDIO WEB RETRO JUGUETÓN)
-           ========================================== */
-        class AudioSynth {
-            constructor() {
-                this.ctx = null;
-                this.masterVolume = null;
-                this.lastToneTime = 0;
+        
+        // Variables globales para monitoreo de performance
+        let deviceProfile = {
+            isMobile: false,
+            isTablet: false,
+            detectedFPS: 60,
+            qualityPreset: 'High', // High, Medium, Low
+            particleLimit: 12000,
+            hasShadows: true,
+            pixelRatio: 2
+        };
+
+        // Detector avanzado de hardware y orientación
+        function runHardwareProfiler() {
+            const ua = navigator.userAgent;
+            const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+            const width = window.innerWidth;
+            
+            deviceProfile.isMobile = mobileRegex.test(ua);
+            deviceProfile.isTablet = (deviceProfile.isMobile && width > 768) || (ua.includes('Macintosh') && 'ontouchend' in document);
+            
+            // Asignación inteligente de perfil basado en limitaciones de GPU móvil típicas
+            if (deviceProfile.isMobile && !deviceProfile.isTablet) {
+                deviceProfile.qualityPreset = 'Low';
+                deviceProfile.particleLimit = 1500;
+                deviceProfile.hasShadows = false;
+                deviceProfile.pixelRatio = 1.0; // Renderizado optimizado para bajo consumo de batería y calor
+            } else if (deviceProfile.isTablet) {
+                deviceProfile.qualityPreset = 'Medium';
+                deviceProfile.particleLimit = 4000;
+                deviceProfile.hasShadows = false;
+                deviceProfile.pixelRatio = Math.min(window.devicePixelRatio, 1.5);
+            } else {
+                deviceProfile.qualityPreset = 'High';
+                deviceProfile.particleLimit = 12000;
+                deviceProfile.hasShadows = true;
+                deviceProfile.pixelRatio = Math.min(window.devicePixelRatio, 2.0); // No sobrecargar GPUs 4K
             }
 
-            init() {
-                if (this.ctx) return;
-                const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                this.ctx = new AudioCtx();
-                this.masterVolume = this.ctx.createGain();
-                this.masterVolume.gain.setValueAtTime(0.08, this.ctx.currentTime); // Volumen amigable y suave
-                this.masterVolume.connect(this.ctx.destination);
+            // Actualizar interfaz con el diagnóstico de hardware
+            const devText = deviceProfile.isMobile ? (deviceProfile.isTablet ? "Tablet Táctil" : "Móvil Táctil") : "Computadora";
+            document.getElementById('detected-device').textContent = devText;
+            document.getElementById('quality-badge').textContent = deviceProfile.qualityPreset + " Q";
+            document.getElementById('shadows-status').textContent = deviceProfile.hasShadows ? "Soporte Completo (PCF)" : "Deshabilitado (Ahorro)";
+            
+            // Forzar el slider al límite óptimo según el perfil
+            const slider = document.getElementById('slider-particles');
+            slider.max = deviceProfile.particleLimit;
+            slider.value = Math.min(slider.value, deviceProfile.particleLimit);
+            document.getElementById('lbl-particle-density').textContent = slider.value;
+        }
+
+        // Mostrar un mensaje sutil en lugar de un alert molesto
+        function showNotification(msg) {
+            const toast = document.getElementById('toast-message');
+            toast.textContent = msg;
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 3000);
+        }
+
+        
+        // Elementos de la simulación 3D
+        let scene, camera, renderer, controls;
+        let starField, gravitationalCore, orbitingParticles;
+        let particlesGeometry, particleSystem;
+        let gravityForce = 0.5;
+        let activeTheme = 'cyberpunk';
+        let customXRActive = false;
+        
+        // Arreglos internos para la física de partículas
+        let positions, velocities, initialData;
+
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+            
+            // 1. Escena
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x05050a, 0.015);
+
+            // 2. Cámara adaptativa
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 50, 100);
+
+            // 3. Renderizador optimizado para pantallas retina y eficiencia de energía
+            renderer = new THREE.WebGLRenderer({ antialias: deviceProfile.qualityPreset !== 'Low', alpha: false, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(deviceProfile.pixelRatio);
+            
+            // Sombras optimizadas solo en ordenadores de alto rendimiento para mantener alta tasa de refresco
+            if (deviceProfile.hasShadows) {
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             }
+            
+            container.appendChild(renderer.domElement);
 
-            resume() {
-                if (this.ctx && this.ctx.state === 'suspended') {
-                    this.ctx.resume();
-                }
+            // 4. Luces del universo holográfico
+            const ambientLight = new THREE.AmbientLight(0x080816);
+            scene.add(ambientLight);
+
+            // Luz estelar puntual central (proyecta sombras si está habilitado)
+            const starLight = new THREE.PointLight(0x00f0ff, 3, 300, 1.5);
+            starLight.position.set(0, 0, 0);
+            if (deviceProfile.hasShadows) {
+                starLight.castShadow = true;
+                starLight.shadow.mapSize.width = 1024;
+                starLight.shadow.mapSize.height = 1024;
             }
+            scene.add(starLight);
 
-            // Un sonido tierno similar a una burbuja o un salto
-            playPop(freq = 523, duration = 0.15) {
-                if (!this.ctx) return;
-                this.resume();
+            // Luz direccional secundaria para destacar detalles volumétricos
+            const dirLight = new THREE.DirectionalLight(0xff007f, 1);
+            dirLight.position.set(50, 50, 50);
+            scene.add(dirLight);
 
-                const osc = this.ctx.createOscillator();
-                const gainNode = this.ctx.createGain();
+            // 5. Controles orbitales responsivos (Soportan ratón y gestos multitáctiles en pantallas móviles)
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxDistance = 300;
+            controls.minDistance = 10;
 
-                osc.type = 'triangle'; // Sonido suave 8-bit
-                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-                // Efecto de pitch descendente/ascendente rápido para sonido juguetón
-                osc.frequency.exponentialRampToValueAtTime(freq * 1.8, this.ctx.currentTime + duration);
+            // Construir el núcleo gravitacional y el sistema
+            buildCosmicObjects();
+        }
 
-                gainNode.gain.setValueAtTime(0.06, this.ctx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
 
-                osc.connect(gainNode);
-                gainNode.connect(this.masterVolume);
+        // Adaptabilidad instantánea a cambios de orientación o tamaño de pantalla sin perder calidad
+        function handleResize() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
 
-                osc.start();
-                osc.stop(this.ctx.currentTime + duration);
-            }
+            // Actualización de la cámara con relación de aspecto correcta
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
 
-            // Melodía mágica de inicio
-            playWelcomeChime() {
-                if (!this.ctx) return;
-                this.resume();
-                
-                // Arpegio de fantasía (Acorde de Do mayor con séptima)
-                const notes = [523.25, 659.25, 783.99, 987.77, 1046.50];
-                notes.forEach((f, index) => {
-                    setTimeout(() => {
-                        this.playPop(f, 0.2);
-                    }, index * 80);
-                });
-            }
-
-            // Reaccionar según el tipo de emoción
-            playCuteReaction(type) {
-                if (!this.ctx) return;
-                this.resume();
-                
-                const now = this.ctx.currentTime;
-                if (now - this.lastToneTime < 1.0) return; // Anti-spam de sonidos
-                this.lastToneTime = now;
-
-                if (type === 'alegria') {
-                    // Chime súper feliz ascendente
-                    const notes = [587.33, 698.46, 880.00, 1046.50];
-                    notes.forEach((f, index) => {
-                        setTimeout(() => this.playPop(f, 0.15), index * 60);
-                    });
-                } else if (type === 'sorpresa') {
-                    // Sonido deslizante hacia arriba rápido
-                    const osc = this.ctx.createOscillator();
-                    const gainNode = this.ctx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(300, now);
-                    osc.frequency.exponentialRampToValueAtTime(1500, now + 0.25);
-                    gainNode.gain.setValueAtTime(0.05, now);
-                    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
-                    osc.connect(gainNode);
-                    gainNode.connect(this.masterVolume);
-                    osc.start();
-                    osc.stop(now + 0.25);
-                } else if (type === 'frown') {
-                    // Sonido cómico descendente "boing"
-                    const osc = this.ctx.createOscillator();
-                    const gainNode = this.ctx.createGain();
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(350, now);
-                    osc.frequency.exponentialRampToValueAtTime(120, now + 0.35);
-                    gainNode.gain.setValueAtTime(0.06, now);
-                    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-                    osc.connect(gainNode);
-                    gainNode.connect(this.masterVolume);
-                    osc.start();
-                    osc.stop(now + 0.35);
-                } else {
-                    // Neutro suave
-                    this.playPop(440, 0.12);
-                }
+            // Redimensionamiento del lienzo
+            renderer.setSize(width, height);
+            
+            // Actualizar interfaz basada en la nueva relación de aspecto
+            const statusLabel = document.getElementById('orientation-status');
+            if (width < height) {
+                statusLabel.textContent = "Modo Retrato / Móvil";
+            } else {
+                statusLabel.textContent = "Modo Apaisado / Escritorio";
             }
         }
 
-        const audio = new AudioSynth();
-
-        /* ==========================================
-           2. STREAMING_CHUNK: MOTOR 3D RE-IMAGINADO (MASCOTA TIERNA "BLOB BUDDY")
-           ========================================== */
-        class RenderEngine {
-            constructor() {
-                this.canvas = document.getElementById('ar-canvas');
-                this.scene = null;
-                this.camera = null;
-                this.renderer = null;
-                
-                this.avatarGroup = null; // Grupo del avatar de la mascota
-                this.faceGeometry = null; // Geometría de las brillantinas de la cara
-                this.facePoints = null; // Partículas estelares en el rostro
-                this.showWireMask = true;
-
-                this.sparkleSystem = null;
-                
-                // Componentes de nuestra mascota Blob Buddy
-                this.blobBody = null;
-                this.blobEyes = [];
-                this.blobPupils = [];
-                this.blobMouth = null;
-                this.blobBlushes = [];
-                this.antennaStar = null;
-                
-                // Colores tiernos
-                this.colorJoy = new THREE.Color('#FF75B5'); // Rosa chicle
-                this.colorSurprise = new THREE.Color('#FBBF24'); // Amarillo brillante
-                this.colorAngry = new THREE.Color('#8B5CF6'); // Morado travieso
-                this.colorNormal = new THREE.Color('#FF92C5'); // Rosa pastel base
-                this.currentColor = new THREE.Color('#FF92C5');
-            }
-
-            init() {
-                this.scene = new THREE.Scene();
-
-                this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-                this.camera.position.set(0, 0, 5);
-
-                this.renderer = new THREE.WebGLRenderer({
-                    canvas: this.canvas,
-                    alpha: true, // Para superponer el video
-                    antialias: true,
-                    powerPreference: "high-performance"
-                });
-                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-                this.renderer.setSize(window.innerWidth, window.innerHeight);
-
-                // Configurar Iluminación Amigable e Intensa (Cartoon-like)
-                const ambientLight = new THREE.AmbientLight(0xffffff, 1.8);
-                this.scene.add(ambientLight);
-
-                const dirLight = new THREE.DirectionalLight(0xffe4e6, 1.2);
-                dirLight.position.set(0, 4, 3);
-                this.scene.add(dirLight);
-
-                const pointLight = new THREE.PointLight(0xffffff, 2, 8);
-                pointLight.position.set(0, 0, 2);
-                this.scene.add(pointLight);
-
-                // Crear los componentes divertidos
-                this.createCuteMascot();
-                this.createMagicPointsGeometry();
-                this.createSparkles();
-
-                window.addEventListener('resize', () => this.onResize());
-            }
-
-            onResize() {
-                const w = window.innerWidth;
-                const h = window.innerHeight;
-                this.camera.aspect = w / h;
-                this.camera.updateProjectionMatrix();
-                this.renderer.setSize(w, h);
-                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            }
-
-            createCuteMascot() {
-                this.avatarGroup = new THREE.Group();
-                this.avatarGroup.position.set(1.4, 0.6, 1);
-                this.avatarGroup.scale.set(0.65, 0.65, 0.65);
-                this.scene.add(this.avatarGroup);
-
-                // 1. Cuerpo principal: Una bola suave y redondeada (Blob)
-                const bodyGeo = new THREE.SphereGeometry(0.55, 32, 32);
-                const bodyMat = new THREE.MeshPhongMaterial({
-                    color: 0xFF92C5,
-                    shininess: 80,
-                    flatShading: false,
-                    transparent: true,
-                    opacity: 0.95
-                });
-                this.blobBody = new THREE.Mesh(bodyGeo, bodyMat);
-                this.avatarGroup.add(this.blobBody);
-
-                // 2. Ojos de caricatura muy grandes y expresivos
-                const eyeGeo = new THREE.SphereGeometry(0.12, 24, 24);
-                const eyeMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
-                const pupilGeo = new THREE.SphereGeometry(0.065, 16, 16);
-                const pupilMat = new THREE.MeshBasicMaterial({ color: 0x2E1065 }); // Morado súper oscuro
-
-                // Ojo Izquierdo
-                const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-                leftEye.position.set(-0.16, 0.12, 0.44);
-                const leftPupil = new THREE.Mesh(pupilGeo, pupilMat);
-                leftPupil.position.set(-0.16, 0.12, 0.54);
-                this.avatarGroup.add(leftEye, leftPupil);
-                this.blobEyes.push(leftEye);
-                this.blobPupils.push(leftPupil);
-
-                // Ojo Derecho
-                const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-                rightEye.position.set(0.16, 0.12, 0.44);
-                const rightPupil = new THREE.Mesh(pupilGeo, pupilMat);
-                rightPupil.position.set(0.16, 0.12, 0.54);
-                this.avatarGroup.add(rightEye, rightPupil);
-                this.blobEyes.push(rightEye);
-                this.blobPupils.push(rightPupil);
-
-                // 3. Mejillas rosadas que brillan de vergüenza/alegría
-                const blushGeo = new THREE.SphereGeometry(0.06, 16, 16);
-                const blushMat = new THREE.MeshBasicMaterial({
-                    color: 0xFF5197,
-                    transparent: true,
-                    opacity: 0.6
-                });
-                const leftBlush = new THREE.Mesh(blushGeo, blushMat);
-                leftBlush.position.set(-0.32, -0.04, 0.4);
-                const rightBlush = new THREE.Mesh(blushGeo, blushMat);
-                rightBlush.position.set(0.32, -0.04, 0.4);
-                this.avatarGroup.add(leftBlush, rightBlush);
-                this.blobBlushes.push(leftBlush, rightBlush);
-
-                // 4. Boca dulce de caricatura (un pequeño toro/caja ajustable)
-                const mouthGeo = new THREE.BoxGeometry(0.14, 0.05, 0.04);
-                const mouthMat = new THREE.MeshBasicMaterial({ color: 0x2E1065 });
-                this.blobMouth = new THREE.Mesh(mouthGeo, mouthMat);
-                this.blobMouth.position.set(0, -0.12, 0.48);
-                this.avatarGroup.add(this.blobMouth);
-
-                // 5. Antena con una pequeña estrella juguetona en el extremo
-                const antennaPoleGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.25);
-                const antennaPoleMat = new THREE.MeshPhongMaterial({ color: 0xFFFFFF });
-                const antennaPole = new THREE.Mesh(antennaPoleGeo, antennaPoleMat);
-                antennaPole.position.set(0, 0.6, 0);
-                this.avatarGroup.add(antennaPole);
-
-                const starGeo = new THREE.OctahedronGeometry(0.12, 0);
-                const starMat = new THREE.MeshPhongMaterial({
-                    color: 0xFBBF24,
-                    emissive: 0x92400E,
-                    shininess: 100
-                });
-                this.antennaStar = new THREE.Mesh(starGeo, starMat);
-                this.antennaStar.position.set(0, 0.74, 0);
-                this.avatarGroup.add(this.antennaStar);
-
-                this.adaptMascotToScreen();
-            }
-
-            adaptMascotToScreen() {
-                if (window.innerWidth < 768) {
-                    // Celulares: Colocar en la parte central superior para no tapar los controles
-                    this.avatarGroup.position.set(0, 1.25, 1.2);
-                    this.avatarGroup.scale.set(0.5, 0.5, 0.5);
-                } else {
-                    // Pantallas grandes: Al lado de la cara mapeada
-                    this.avatarGroup.position.set(1.4, 0.6, 1.5);
-                    this.avatarGroup.scale.set(0.7, 0.7, 0.7);
-                }
-            }
-
-            // Cambiamos la red facial aburrida por puntos mágicos / brillantina
-            createMagicPointsGeometry() {
-                this.faceGeometry = new THREE.BufferGeometry();
-                
-                // Representaremos el rostro con pequeñas esferas doradas y rosadas
-                const pointsMaterial = new THREE.PointsMaterial({
-                    color: 0xFF75B5,
-                    size: 0.065, // Pequeñas esferas tiernas
-                    transparent: true,
-                    opacity: 0.85,
-                    depthWrite: false
-                });
-
-                this.facePoints = new THREE.Points(this.faceGeometry, pointsMaterial);
-                this.scene.add(this.facePoints);
-            }
-
-            // Destellos de purpurina flotante alrededor de la mascota
-            createSparkles() {
-                const count = 60;
-                const geo = new THREE.BufferGeometry();
-                const pos = new Float32Array(count * 3);
-
-                for(let i=0; i < count*3; i+=3) {
-                    pos[i] = (Math.random() - 0.5) * 5;
-                    pos[i+1] = (Math.random() - 0.5) * 5;
-                    pos[i+2] = (Math.random() - 2.5);
-                }
-
-                geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-                
-                // Puntos como estrellas
-                const mat = new THREE.PointsMaterial({
-                    size: 0.06,
-                    color: 0xFBBF24, // Color dorado destellante
-                    transparent: true,
-                    opacity: 0.9
-                });
-
-                this.sparkleSystem = new THREE.Points(geo, mat);
-                this.scene.add(this.sparkleSystem);
-            }
-
-            // Actualizar el mapeo de la cara en 3D
-            updateFaceMesh(landmarks) {
-                if (!this.showWireMask) {
-                    this.facePoints.visible = false;
-                    return;
-                }
-                this.facePoints.visible = true;
-
-                const positions = [];
-                landmarks.forEach(lm => {
-                    const x = (lm.x - 0.5) * 3.5;
-                    const y = -(lm.y - 0.5) * 4.5;
-                    const z = -lm.z * 3.5;
-                    positions.push(x, y, z);
-                });
-
-                const vertices = new Float32Array(positions);
-                this.faceGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-                this.faceGeometry.attributes.position.needsUpdate = true;
-            }
-
-            // Animación y reactividad de la mascota tierna
-            updateAvatar(expressions, headData, time) {
-                if (!this.avatarGroup) return;
-
-                this.adaptMascotToScreen();
-
-                // 1. Efecto de "Gomita que levita" (rebote suave y deformación gelatinosa)
-                const hoverOffset = Math.sin(time * 3) * 0.04;
-                this.avatarGroup.position.y += hoverOffset;
-                this.antennaStar.rotation.y += 0.04;
-                
-                // Rotación suave del cuerpo de gelatina
-                this.blobBody.rotation.y = Math.sin(time) * 0.15;
-
-                // 2. Head tracking adaptado con suavidad (La mascota te mira y te imita)
-                const targetRotX = headData.pitch * 0.4;
-                const targetRotY = -headData.yaw * 0.4;
-                const targetRotZ = headData.roll * 0.25;
-
-                this.avatarGroup.rotation.x += (targetRotX - this.avatarGroup.rotation.x) * 0.12;
-                this.avatarGroup.rotation.y += (targetRotY - this.avatarGroup.rotation.y) * 0.12;
-                this.avatarGroup.rotation.z += (targetRotZ - this.avatarGroup.rotation.z) * 0.12;
-
-                // 3. Reactividad expresiva de Blob Buddy
-                if (expressions.smile > 0.45) {
-                    // Sonriente y avergonzado
-                    this.currentColor.lerp(this.colorJoy, 0.1);
-                    this.blobBody.scale.set(1.08, 0.92, 1.05); // Se aplasta tiernamente de felicidad
-                    this.blobBlushes.forEach(b => b.scale.set(1.5, 1.5, 1.5)); // Se sonroja más
-                    this.blobMouth.scale.set(1.4, 3, 1); // Gran sonrisa
-                    
-                    // Ojos felices achinados
-                    this.blobEyes.forEach(e => e.scale.set(1.1, 0.4, 1.1));
-                    this.blobPupils.forEach(p => p.scale.set(1, 0.3, 1));
-                } else if (expressions.jawOpen > 0.4) {
-                    // Sorprendido en grande
-                    this.currentColor.lerp(this.colorSurprise, 0.1);
-                    this.blobBody.scale.set(0.92, 1.15, 0.92); // Se estira de asombro
-                    this.blobBlushes.forEach(b => b.scale.set(0.8, 0.8, 0.8));
-                    this.blobMouth.scale.set(0.7, 5, 1); // Boca en forma de "O" gigante
-                    
-                    this.blobEyes.forEach(e => e.scale.set(1.3, 1.3, 1.3)); // Ojazos
-                    this.blobPupils.forEach(p => p.scale.set(1.3, 1.3, 1.3));
-                } else if (expressions.frown > 0.45) {
-                    // Enfadado juguetón (Puchero)
-                    this.currentColor.lerp(this.colorAngry, 0.1);
-                    this.blobBody.scale.set(1, 1, 1);
-                    this.blobBlushes.forEach(b => b.scale.set(1, 1, 1));
-                    this.blobMouth.scale.set(0.8, 1, 1);
-                    
-                    // Ojos enfadados cruzados
-                    this.blobEyes[0].rotation.z = -0.2;
-                    this.blobEyes[1].rotation.z = 0.2;
-                    this.blobEyes.forEach(e => e.scale.set(1, 0.85, 1));
-                } else {
-                    // Estado relajado y feliz por defecto
-                    this.currentColor.lerp(this.colorNormal, 0.08);
-                    this.blobBody.scale.set(1, 1, 1);
-                    this.blobBlushes.forEach(b => b.scale.set(1, 1, 1));
-                    this.blobMouth.scale.set(1, 1, 1);
-                    
-                    this.blobEyes.forEach(e => {
-                        e.scale.set(1, 1, 1);
-                        e.rotation.z = 0;
-                    });
-                    this.blobPupils.forEach(p => p.scale.set(1, 1, 1));
-                }
-
-                // Parpadeo / Guiño independiente de caricatura
-                if (expressions.leftEyeBlink > 0.6 && expressions.rightEyeBlink < 0.3) {
-                    this.blobEyes[0].scale.y = 0.1; // Guiño izquierdo ;)
-                    this.blobPupils[0].scale.y = 0.1;
-                }
-                if (expressions.rightEyeBlink > 0.6 && expressions.leftEyeBlink < 0.3) {
-                    this.blobEyes[1].scale.y = 0.1; // Guiño derecho ;)
-                    this.blobPupils[1].scale.y = 0.1;
-                }
-
-                // Aplicar transiciones de color suave
-                this.blobBody.material.color.copy(this.currentColor);
-
-                // Rotar los destellos dorados
-                if (this.sparkleSystem) {
-                    this.sparkleSystem.rotation.y += 0.003;
-                    this.sparkleSystem.rotation.x += 0.001;
-                }
-
-                this.renderer.render(this.scene, this.camera);
-            }
-        }
-
-        const render = new RenderEngine();
-
-        /* ==========================================
-           3. STREAMING_CHUNK: CLASIFICADOR MATEMÁTICO DE CARITAS
-           ========================================== */
-        class ExpressionEstimator {
-            constructor() {
-                this.lastExpressionTriggered = 'neutral';
-                this.expressions = {
-                    smile: 0,
-                    jawOpen: 0,
-                    frown: 0,
-                    browRaise: 0,
-                    leftEyeBlink: 0,
-                    rightEyeBlink: 0
-                };
-                this.headOrientation = { yaw: 0, pitch: 0, roll: 0 };
-            }
-
-            distance(p1, p2) {
-                return Math.sqrt(
-                    Math.pow(p1.x - p2.x, 2) +
-                    Math.pow(p1.y - p2.y, 2) +
-                    Math.pow(p1.z - p2.z, 2)
-                );
-            }
-
-            analyze(landmarks) {
-                if (!landmarks || landmarks.length < 468) return null;
-
-                const eyeDist = this.distance(landmarks[33], landmarks[263]);
-
-                // 1. Sonrisa
-                const lipWidth = this.distance(landmarks[61], landmarks[291]);
-                this.expressions.smile = Math.max(0, Math.min(1, (lipWidth / eyeDist - 0.70) / 0.25));
-
-                // 2. Boca abierta (Mandíbula)
-                const innerLipGap = this.distance(landmarks[13], landmarks[14]);
-                this.expressions.jawOpen = Math.max(0, Math.min(1, (innerLipGap / eyeDist - 0.03) / 0.35));
-
-                // 3. Guiños
-                const leftEyeHeight = this.distance(landmarks[159], landmarks[145]);
-                const rightEyeHeight = this.distance(landmarks[386], landmarks[374]);
-                this.expressions.leftEyeBlink = leftEyeHeight / eyeDist < 0.035 ? 1 : 0;
-                this.expressions.rightEyeBlink = rightEyeHeight / eyeDist < 0.035 ? 1 : 0;
-
-                // 4. Elevación de cejas
-                const leftBrowDist = this.distance(landmarks[105], landmarks[159]);
-                const rightBrowDist = this.distance(landmarks[334], landmarks[386]);
-                const avgBrowDist = (leftBrowDist + rightBrowDist) / 2;
-                this.expressions.browRaise = Math.max(0, Math.min(1, (avgBrowDist / eyeDist - 0.16) / 0.12));
-
-                // 5. Fruncido (Enfado/Puchero)
-                const browInnerGap = this.distance(landmarks[21], landmarks[251]);
-                this.expressions.frown = Math.max(0, Math.min(1, (0.26 - (browInnerGap / eyeDist)) / 0.12));
-
-                // 6. Orientación de la cabeza
-                const nose = landmarks[1];
-                const leftEye = landmarks[33];
-                const rightEye = landmarks[263];
-                const eyeMidPointX = (leftEye.x + rightEye.x) / 2;
-                this.headOrientation.yaw = (nose.x - eyeMidPointX) * 2.5;
-
-                const eyeMidPointY = (leftEye.y + rightEye.y) / 2;
-                this.headOrientation.pitch = (nose.y - eyeMidPointY - 0.12) * 2;
-
-                this.headOrientation.roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
-
-                return this.translateToTranslation();
-            }
-
-            translateToTranslation() {
-                let primary = "CARITA RELAJADA";
-                let emoji = "🧸";
-                let confidence = 95;
-                let desc = "¡Te ves de maravilla! Tu amiguito está listo y flotando alegremente a tu lado esperando tus gestos.";
-                let audioType = "neutro";
-
-                if (this.expressions.smile > 0.45) {
-                    primary = "¡UNA GRAN SONRISA!";
-                    emoji = "🥰";
-                    confidence = Math.round(this.expressions.smile * 100);
-                    desc = "¡Qué bonita sonrisa tienes! Estás contrayendo los músculos felices de tu cara. ¡Tu amiguito está saltando de alegría!";
-                    audioType = "alegria";
-                } else if (this.expressions.jawOpen > 0.40) {
-                    primary = "¡Mucha Sorpresa!";
-                    emoji = "😲";
-                    confidence = Math.round(this.expressions.jawOpen * 100);
-                    desc = "¡Guau! Has abierto la boca en grande de par en par. ¿Viste algo asombroso o te contaron un secreto?";
-                    audioType = "sorpresa";
-                } else if (this.expressions.frown > 0.45) {
-                    primary = "¡PUCHERO O CONCENTRACIÓN!";
-                    emoji = "😠";
-                    confidence = Math.round(this.expressions.frown * 100);
-                    desc = "Parece que estás frunciendo tus cejas. Tal vez estás muy concentrado pensando en un rompecabezas o haciendo un puchero travieso.";
-                    audioType = "frown";
-                } else if (this.expressions.browRaise > 0.50) {
-                    primary = "CEJAS ELEVADAS";
-                    emoji = "🤨";
-                    confidence = Math.round(this.expressions.browRaise * 100);
-                    desc = "¡Cejas arriba! Esta carita suele significar curiosidad extrema o sorpresa de caricatura. ¿Qué estás tramando?";
-                } else if (this.expressions.leftEyeBlink > 0.7 && this.expressions.rightEyeBlink < 0.3) {
-                    primary = "¡GUIÑO IZQUIERDO COQUETO!";
-                    emoji = "😉";
-                    confidence = 99;
-                    desc = "¡Genial! Has hecho un guiño perfecto con el ojo izquierdo. ¡Tu amiguito de gelatina te devolvió el saludo!";
-                } else if (this.expressions.rightEyeBlink > 0.7 && this.expressions.leftEyeBlink < 0.3) {
-                    primary = "¡GUIÑO DERECHO DIVERTIDO!";
-                    emoji = "😜";
-                    confidence = 99;
-                    desc = "¡Qué gracioso! Guiñaste el ojo derecho de forma increíble. ¡Sigue probando caras locas!";
-                }
-
-                if (primary !== this.lastExpressionTriggered) {
-                    this.lastExpressionTriggered = primary;
-                    audio.playCuteReaction(audioType);
-                    // Efecto de brinco inflable para el emoji en el panel
-                    gsap.fromTo('#trans-emoji', 
-                        { scale: 0.6, rotation: -15 }, 
-                        { scale: 1, rotation: 3, duration: 0.5, ease: "bounce.out" }
-                    );
-                }
-
-                return {
-                    title: primary.toUpperCase(),
-                    emoji: emoji,
-                    confidence: confidence,
-                    desc: desc,
-                    raw: this.expressions,
-                    orientation: this.headOrientation
-                };
-            }
-        }
-
-        const tracker = new ExpressionEstimator();
-
-        /* ==========================================
-           4. STREAMING_CHUNK: ORQUESTADOR PRINCIPAL JUGUETÓN
-           ========================================== */
-        class App {
-            constructor() {
-                this.webcam = document.getElementById('webcam');
-                this.btnStart = document.getElementById('btn-start');
-                this.landingScreen = document.getElementById('landing-screen');
-                this.loadingScreen = document.getElementById('loading-screen');
-                this.appContainer = document.getElementById('app-container');
-                this.loadingPercent = document.getElementById('loading-percent');
-                this.loadingBar = document.getElementById('loading-bar');
-                this.loadingStatus = document.getElementById('loading-status');
-                this.loadingLog = document.getElementById('loading-log');
-
-                this.faceMeshMP = null;
-                this.cameraMP = null;
-                this.lastFrameTime = 0;
-                this.frameCount = 0;
-                this.fps = 0;
-            }
-
-            init() {
-                this.btnStart.addEventListener('click', () => this.startPlayfulEngine());
-                
-                // Toggle para activar/desactivar estrellas faciales
-                document.getElementById('btn-toggle-mesh').addEventListener('click', (e) => {
-                    render.showWireMask = !render.showWireMask;
-                    e.target.innerText = render.showWireMask ? "Filtro: Brillantinas ✨" : "Filtro: APAGADO";
-                    e.target.classList.toggle('text-magic-pink');
-                    e.target.classList.toggle('text-slate-400');
-                    audio.playPop(784, 0.08); // Tono agradable de clic
-                });
-            }
-
-            async startPlayfulEngine() {
-                // Iniciar Audio interactivo
-                audio.init();
-                audio.playWelcomeChime();
-
-                // Cambiar a la linda pantalla de carga
-                this.landingScreen.classList.add('hidden');
-                this.loadingScreen.classList.remove('hidden');
-
-                try {
-                    this.updateLoading(15, 'Buscando cámara 📸', 'Ajustando los lentes de caricatura...');
-                    
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            facingMode: 'user',
-                            width: { ideal: 640 },
-                            height: { ideal: 480 }
-                        },
-                        audio: false
-                    });
-                    
-                    this.webcam.srcObject = stream;
-                    await this.webcam.play();
-                    this.updateLoading(45, '¡Cámara lista! ✨', 'Invocando la magia neuronal de MediaPipe...');
-
-                    // Inicializar Face Mesh de MediaPipe
-                    this.faceMeshMP = new FaceMesh({
-                        locateFile: (file) => {
-                            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-                        }
-                    });
-
-                    this.faceMeshMP.setOptions({
-                        maxNumFaces: 1,
-                        refineLandmarks: true,
-                        minDetectionConfidence: 0.5,
-                        minTrackingConfidence: 0.5
-                    });
-
-                    this.faceMeshMP.onResults((results) => this.onMeshResults(results));
-
-                    this.updateLoading(75, '¡Preparando escenario! 🎈', 'Colocando brillantina y amiguito 3D...');
-
-                    // Inicializar render 3D
-                    render.init();
-
-                    // Lanzar bucle de captura nativo
-                    this.cameraMP = new Camera(this.webcam, {
-                        onFrame: async () => {
-                            await this.faceMeshMP.send({ image: this.webcam });
-                        },
-                        width: 640,
-                        height: 480
-                    });
-
-                    this.updateLoading(95, '¡A Jugar! 🥳', 'Abriendo el espejo mágico...');
-                    
-                    await this.cameraMP.start();
-
-                    setTimeout(() => {
-                        this.loadingScreen.classList.add('hidden');
-                        this.appContainer.classList.remove('hidden');
-                        render.onResize();
-                    }, 800);
-
-                } catch (err) {
-                    console.error("Fallo del espejo mágico:", err);
-                    this.loadingStatus.innerHTML = "<span class='text-magic-pink'>¡HAY UN DETALLE! 🧐</span>";
-                    this.loadingLog.innerText = "No logramos abrir tu cámara. Asegúrate de dar los permisos correspondientes.";
-                }
-            }
-
-            updateLoading(percent, title, subtitle) {
-                this.loadingPercent.innerText = `${percent}%`;
-                this.loadingBar.style.width = `${percent}%`;
-                this.loadingStatus.innerText = title;
-                this.loadingLog.innerText = subtitle;
-            }
-
-            onMeshResults(results) {
-                const now = performance.now();
-                
-                // Calcular FPS amigables
-                this.frameCount++;
-                if (now - this.lastFrameTime >= 1000) {
-                    this.fps = this.frameCount;
-                    this.frameCount = 0;
-                    this.lastFrameTime = now;
-                    document.getElementById('hud-fps').innerText = this.fps;
-                }
-
-                if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                    const landmarks = results.multiFaceLandmarks[0];
-
-                    // 1. Análisis de expresiones
-                    const data = tracker.analyze(landmarks);
-                    
-                    if (data) {
-                        // 2. Mapear estrellas de purpurina en el rostro
-                        render.updateFaceMesh(landmarks);
-
-                        // 3. Mover y animar la mascota Blob Buddy
-                        render.updateAvatar(data.raw, data.orientation, now * 0.001);
-
-                        // 4. Actualizar la interfaz colorida
-                        this.updateHUD(data);
-                    }
-                } else {
-                    // Si no detecta rostro
-                    render.updateAvatar({
-                        smile: 0, jawOpen: 0, frown: 0, browRaise: 0, leftEyeBlink: 0, rightEyeBlink: 0
-                    }, { yaw: 0, pitch: 0, roll: 0 }, now * 0.001);
-                }
-            }
-
-            // Sincronizar los resultados en la interfaz
-            updateHUD(data) {
-                document.getElementById('trans-title').innerText = data.title;
-                document.getElementById('trans-emoji').innerText = data.emoji;
-                document.getElementById('trans-desc').innerText = data.desc;
-                
-                document.getElementById('trans-confidence').innerText = `${data.confidence}%`;
-                document.getElementById('trans-confidence-bar').style.width = `${data.confidence}%`;
-
-                // Telemetrías del panel izquierdo (en pantallas medianas/grandes)
-                document.getElementById('tel-smile-pct').innerText = `${Math.round(data.raw.smile * 100)}%`;
-                document.getElementById('tel-smile-bar').style.width = `${data.raw.smile * 100}%`;
-
-                document.getElementById('tel-jaw-pct').innerText = `${Math.round(data.raw.jawOpen * 100)}%`;
-                document.getElementById('tel-jaw-bar').style.width = `${data.raw.jawOpen * 100}%`;
-
-                document.getElementById('tel-frown-pct').innerText = `${Math.round(data.raw.frown * 100)}%`;
-                document.getElementById('tel-frown-bar').style.width = `${data.raw.frown * 100}%`;
-
-                document.getElementById('tel-brow-pct').innerText = `${Math.round(data.raw.browRaise * 100)}%`;
-                document.getElementById('tel-brow-bar').style.width = `${data.raw.browRaise * 100}%`;
-
-                // Cambiar el resplandor de fondo según tu gesto
-                const glow = document.getElementById('dynamic-glow');
-                if (data.raw.smile > 0.45) {
-                    glow.style.backgroundColor = '#FBBF24'; // Brillo dorado feliz
-                } else if (data.raw.jawOpen > 0.4) {
-                    glow.style.backgroundColor = '#38BDF8'; // Brillo azul de asombro
-                } else if (data.raw.frown > 0.4) {
-                    glow.style.backgroundColor = '#8B5CF6'; // Brillo morado puchero
-                } else {
-                    glow.style.backgroundColor = '#FF75B5'; // Rosa normal tierno
-                }
-            }
-        }
-
-        window.addEventListener('DOMContentLoaded', () => {
-            const system = new App();
-            system.init();
+        // Registrar los escuchadores para el redimensionamiento fluido en Android/iOS y Desktop
+        window.addEventListener('resize', handleResize);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(handleResize, 200); // Pequeño retraso para que los navegadores móviles calculen bien la ventana gráfica
         });
+
+
+        function buildCosmicObjects() {
+            // Eliminar partículas viejas si existen al reiniciar
+            if (particleSystem) scene.remove(particleSystem);
+            if (gravitationalCore) scene.remove(gravitationalCore);
+
+            // 1. Núcleo Gravitacional Central (Estrella de energía)
+            const coreGeo = new THREE.SphereGeometry(6, 32, 32);
+            
+            // Material autoiluminado con estética holográfica de rejilla
+            const coreMat = new THREE.MeshBasicMaterial({
+                color: activeTheme === 'cyberpunk' ? 0x00f0ff : (activeTheme === 'supernova' ? 0xffaa00 : 0x10b981),
+                wireframe: true,
+                transparent: true,
+                opacity: 0.8
+            });
+            gravitationalCore = new THREE.Mesh(coreGeo, coreMat);
+            scene.add(gravitationalCore);
+
+            // 2. Generador del disco de partículas orbitales
+            const particleCount = parseInt(document.getElementById('slider-particles').value);
+            document.getElementById('active-particles').textContent = particleCount;
+
+            particlesGeometry = new THREE.BufferGeometry();
+            positions = new Float32Array(particleCount * 3);
+            velocities = new Float32Array(particleCount * 3);
+            initialData = []; // Guardamos el estado inicial para poder restablecer la gravedad
+
+            const radiusRange = 80;
+
+            for (let i = 0; i < particleCount; i++) {
+                // Generar partículas en un plano elíptico tipo galaxia espiral
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 12 + Math.random() * radiusRange;
+                const heightOffset = (Math.random() - 0.5) * (distance * 0.15); // Dispersión vertical adaptativa
+
+                const x = Math.cos(angle) * distance;
+                const y = heightOffset;
+                const z = Math.sin(angle) * distance;
+
+                positions[i * 3] = x;
+                positions[i * 3 + 1] = y;
+                positions[i * 3 + 2] = z;
+
+                // Definir velocidad orbital inicial tangencial al centro
+                const speed = Math.sqrt((gravityForce * 10) / distance); // Ley básica Kepleriana modificada
+                velocities[i * 3] = -Math.sin(angle) * speed;
+                velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.1;
+                velocities[i * 3 + 2] = Math.cos(angle) * speed;
+
+                initialData.push({ angle, distance });
+            }
+
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            // Crear textura procedural circular para partículas suaves de alto rendimiento
+            const pTexture = createParticleTexture();
+
+            // Material especializado optimizado para millones de píxeles móviles
+            const particleMaterial = new THREE.PointsMaterial({
+                color: activeTheme === 'cyberpunk' ? 0xff007f : (activeTheme === 'supernova' ? 0xff3300 : 0x059669),
+                size: deviceProfile.isMobile ? 1.4 : 0.8, // Tamaños más grandes en pantallas táctiles de alta densidad
+                map: pTexture,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            particleSystem = new THREE.Points(particlesGeometry, particleMaterial);
+            scene.add(particleSystem);
+        }
+
+        // Generador de textura circular brillante en 2D Canvas (Evita dependencias de URLs o Base64)
+        function createParticleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32;
+            canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            
+            const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(0, 240, 255, 0.4)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 32, 32);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
+        }
+
+        // Cambiar paletas visuales sin reiniciar la simulación
+        function setCosmicTheme(theme) {
+            activeTheme = theme;
+            let starColor, particleColor;
+            
+            if (theme === 'cyberpunk') {
+                starColor = 0x00f0ff;
+                particleColor = 0xff007f;
+                document.body.style.setProperty('--accent', '#00f0ff');
+            } else if (theme === 'supernova') {
+                starColor = 0xffaa00;
+                particleColor = 0xff3300;
+                document.body.style.setProperty('--accent', '#ffaa00');
+            } else if (theme === 'deepspace') {
+                starColor = 0x10b981;
+                particleColor = 0x059669;
+                document.body.style.setProperty('--accent', '#10b981');
+            }
+
+            if (gravitationalCore) gravitationalCore.material.color.setHex(starColor);
+            if (particleSystem) particleSystem.material.color.setHex(particleColor);
+            
+            showNotification(`Tema cósmico cambiado a: ${theme.toUpperCase()}`);
+        }
+
+
+        // Captura de eventos táctiles para interactuar directamente con la fuerza gravitacional del centro
+        let isTouching = false;
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+
+        function onPointerMove(event) {
+            // Manejar tanto mouse como eventos táctiles de forma agnóstica
+            let clientX, clientY;
+            if (event.touches) {
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+            } else {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+
+            // Normalización para Three.js raycasting
+            pointer.x = (clientX / window.innerWidth) * 2 - 1;
+            pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+        }
+
+        // Al presionar sobre la simulación táctil, se ejerce una distorsión gravitacional
+        function triggerPulse() {
+            gravityForce *= 2.5;
+            document.getElementById('lbl-gravity').textContent = gravityForce.toFixed(1);
+            document.getElementById('slider-gravity').value = gravityForce;
+            
+            // Animación sutil del núcleo gravitacional
+            if (gravitationalCore) {
+                gravitationalCore.scale.set(1.4, 1.4, 1.4);
+                setTimeout(() => gravitationalCore.scale.set(1, 1, 1), 300);
+            }
+        }
+
+        function releasePulse() {
+            gravityForce = parseFloat(document.getElementById('slider-gravity').value);
+        }
+
+        // Registro de los eventos con soporte móvil de baja latencia ('passive: true' para mejor scroll si existiera)
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('touchstart', (e) => { onPointerMove(e); triggerPulse(); }, { passive: true });
+        window.addEventListener('touchend', releasePulse, { passive: true });
+
+
+        // Medidor de FPS y Auto-profiling en ejecución.
+        // Si el dispositivo comienza a sufrir caídas de FPS, adaptamos dinámicamente el conteo
+        let lastTime = performance.now();
+        let frames = 0;
+        let fpsTimer = 0;
+
+        function checkPerformanceBudget(currentFps) {
+            const counterEl = document.getElementById('fps-counter');
+            counterEl.textContent = `${currentFps} FPS`;
+
+            // Cambiar colores del indicador de rendimiento
+            if (currentFps < 30) {
+                counterEl.className = "font-semibold text-rose-500 animate-pulse";
+                // Disminuir partículas dinámicamente si los FPS están críticamente bajos en móviles
+                optimizeOnTheFly();
+            } else if (currentFps < 48) {
+                counterEl.className = "font-semibold text-amber-500";
+            } else {
+                counterEl.className = "font-semibold text-emerald-400";
+            }
+        }
+
+        function optimizeOnTheFly() {
+            const slider = document.getElementById('slider-particles');
+            const currentValue = parseInt(slider.value);
+            if (currentValue > 500) {
+                const newValue = Math.max(300, currentValue - 200);
+                slider.value = newValue;
+                document.getElementById('lbl-particle-density').textContent = newValue;
+                buildCosmicObjects();
+                showNotification("Ajustando carga gráfica para suavizar la animación...");
+            }
+        }
+
+
+        function animate(timestamp) {
+            requestAnimationFrame(animate);
+
+            // Monitoreo de frames por segundo
+            frames++;
+            if (timestamp > lastTime + 1000) {
+                const fps = Math.round((frames * 1000) / (timestamp - lastTime));
+                deviceProfile.detectedFPS = fps;
+                checkPerformanceBudget(fps);
+                frames = 0;
+                lastTime = timestamp;
+            }
+
+            // Animaciones del Núcleo Gravitacional
+            if (gravitationalCore) {
+                gravitationalCore.rotation.y += 0.005;
+                gravitationalCore.rotation.z += 0.002;
+            }
+
+            // Simulación Física de las órbitas Keplerianas
+            if (particleSystem) {
+                const positionsAttr = particleSystem.geometry.attributes.position;
+                const posArray = positionsAttr.array;
+                const len = posArray.length / 3;
+
+                for (let i = 0; i < len; i++) {
+                    const idx = i * 3;
+                    let x = posArray[idx];
+                    let y = posArray[idx + 1];
+                    let z = posArray[idx + 2];
+
+                    // Calcular distancia respecto al centro de gravedad (0,0,0)
+                    const distSq = x * x + y * y + z * z;
+                    const dist = Math.sqrt(distSq);
+
+                    if (dist > 5) {
+                        // Ley de atracción de Newton simplificada para tiempo real suave en móvil
+                        const force = (gravityForce * 4.0) / distSq;
+                        
+                        // Vector dirección hacia el centro
+                        const dx = -x / dist;
+                        const dy = -y / dist;
+                        const dz = -z / dist;
+
+                        // Modificar velocidades
+                        velocities[idx] += dx * force;
+                        velocities[idx + 1] += dy * force;
+                        velocities[idx + 2] += dz * force;
+
+                        // Fricción cósmica sutil para evitar fugas infinitas de partículas
+                        velocities[idx] *= 0.998;
+                        velocities[idx + 1] *= 0.998;
+                        velocities[idx + 2] *= 0.998;
+                    } else {
+                        // Repulsión cuántica cercana para evitar colapsos al núcleo
+                        const bounceForce = 0.5;
+                        velocities[idx] = (Math.random() - 0.5) * bounceForce;
+                        velocities[idx + 1] = (Math.random() - 0.5) * bounceForce;
+                        velocities[idx + 2] = (Math.random() - 0.5) * bounceForce;
+                        posArray[idx] = (Math.random() - 0.5) * 15;
+                        posArray[idx + 2] = (Math.random() - 0.5) * 15;
+                    }
+
+                    // Actualizar posiciones físicas
+                    posArray[idx] += velocities[idx];
+                    posArray[idx + 1] += velocities[idx + 1];
+                    posArray[idx + 2] += velocities[idx + 2];
+                }
+
+                positionsAttr.needsUpdate = true;
+            }
+
+            // WebXR / Simulación Giroscópica Esterescópica Activa
+            if (customXRActive) {
+                // Rotar cámara lentamente como si el usuario girara la cabeza en 360 grados
+                const time = Date.now() * 0.0003;
+                camera.position.x = Math.sin(time) * 110;
+                camera.position.z = Math.cos(time) * 110;
+                camera.lookAt(0, 0, 0);
+            } else {
+                controls.update();
+            }
+
+            // Renderizado final del frame
+            renderer.render(scene, camera);
+        }
+
+
+        // Resetear la simulación al estado galáctico predeterminado
+        function resetSimulation() {
+            buildCosmicObjects();
+            showNotification("Órbitas cuánticas restauradas");
+        }
+
+        // Conectar elementos del formulario e interactivos
+        document.getElementById('slider-particles').addEventListener('input', (e) => {
+            document.getElementById('lbl-particle-density').textContent = e.target.value;
+            buildCosmicObjects();
+        });
+
+        document.getElementById('slider-gravity').addEventListener('input', (e) => {
+            gravityForce = parseFloat(e.target.value);
+            document.getElementById('lbl-gravity').textContent = gravityForce.toFixed(1);
+        });
+
+        // Colapso del panel de control responsive
+        const btnTogglePanel = document.getElementById('btn-toggle-panel');
+        const controlPanel = document.getElementById('control-panel');
+        const chevron = document.getElementById('panel-chevron');
+        let isPanelCollapsed = false;
+
+        btnTogglePanel.addEventListener('click', () => {
+            isPanelCollapsed = !isPanelCollapsed;
+            if (isPanelCollapsed) {
+                // Ocultar panel con animación de deslizamiento lateral en escritorio e inferior en móvil
+                controlPanel.classList.add('translate-x-full', 'opacity-0', 'pointer-events-none');
+                chevron.classList.add('rotate-180');
+            } else {
+                controlPanel.classList.remove('translate-x-full', 'opacity-0', 'pointer-events-none');
+                chevron.classList.remove('rotate-180');
+            }
+        });
+
+        // Simulación inteligente de WebXR / Soporte Estereoscópico en Móvil
+        const btnWebXR = document.getElementById('btn-webxr');
+        const xrText = document.getElementById('webxr-text');
+        
+        btnWebXR.addEventListener('click', () => {
+            customXRActive = !customXRActive;
+            
+            if (customXRActive) {
+                // Entrar en modo inmersivo de simulación estereoscópica (vista dual)
+                document.body.classList.add('vr-mode-split');
+                xrText.textContent = "Salir de XR";
+                showNotification("Iniciando simulación estereoscópica WebXR");
+                
+                // Forzar orientación horizontal para simular gafas VR (ej. Cardboard)
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(() => {
+                        // Fallback silencioso si el navegador o sistema móvil bloquea el bloqueo de pantalla
+                    });
+                }
+            } else {
+                // Salir del modo estereoscópico
+                document.body.classList.remove('vr-mode-split');
+                xrText.textContent = "Iniciar XR";
+                showNotification("Regresando a modo estándar");
+                
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
+            }
+            
+            // Forzar recálculo geométrico del canvas
+            setTimeout(handleResize, 100);
+        });
+
+        // Inicialización automatizada al cargar la ventana
+        window.onload = function() {
+            runHardwareProfiler();
+            init3D();
+            handleResize(); // Primera calibración responsive de aspecto
+            
+            // Iniciar ciclo continuo de renderizado a máxima tasa de refresco soportada (60Hz - 120Hz)
+            animate(0);
+            
+            showNotification("Estabilización de hardware optimizada");
+        };
+
     </script>
 </body>
 </html>
