@@ -1,981 +1,1298 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VisageScan AR - Holographic Face Tracker & Symmetry Analyzer</title>
-    <!-- Tailwind CSS -->
+    <title>AuraScan AR - Escáner Holográfico de Rostro y Humor</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome for Premium Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts (Inter & Mono) -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <!-- Google Fonts for Cyberpunk Aesthetic -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     
-    <!-- MediaPipe Face Mesh Requirements -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-    
-    <!-- Three.js for 3D Face Reconstruction -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
+        .font-cyber {
+            font-family: 'Orbitron', sans-serif;
         }
-        .tech-font {
+        .font-mono-sci {
             font-family: 'Share Tech Mono', monospace;
         }
-        /* Custom scrollbar for cyberpunk look */
+        .font-sans-clean {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom Glowing & Scanline Animations */
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        @keyframes laser-glow {
+            0%, 100% { opacity: 0.7; filter: drop-shadow(0 0 4px currentColor); }
+            50% { opacity: 1; filter: drop-shadow(0 0 15px currentColor); }
+        }
+        .animate-scanline {
+            animation: scanline 4s linear infinite;
+        }
+        .laser-pulse {
+            animation: laser-glow 2s infinite ease-in-out;
+        }
+        /* Glassmorphism panel styling */
+        .cyber-glass {
+            background: rgba(8, 15, 30, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 242, 254, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+        .cyber-border-neon {
+            border: 1px solid currentColor;
+            box-shadow: 0 0 10px rgba(currentColor, 0.3);
+        }
+        /* Scrollbar aesthetics */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
         }
         ::-webkit-scrollbar-track {
-            background: #090d16;
+            background: rgba(15, 23, 42, 0.6);
         }
         ::-webkit-scrollbar-thumb {
-            background: #1e293b;
+            background: #00f2fe;
             border-radius: 3px;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #06b6d4;
-        }
-        /* Glowing neon shadows */
-        .neon-glow-cyan {
-            box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
-        }
-        .neon-glow-magenta {
-            box-shadow: 0 0 15px rgba(236, 72, 153, 0.25);
+        /* Custom CRT & Noise Overlays */
+        .crt-overlay::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 10;
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
         }
     </style>
 </head>
-<body class="h-full flex flex-col overflow-hidden">
-
-    <!-- Header Navigation -->
-    <header class="bg-slate-900/80 border-b border-slate-800 backdrop-blur-md px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 z-10 shrink-0">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center neon-glow-cyan">
-                <i class="fa-solid fa-head-side-virus text-white text-xl animate-pulse"></i>
+<body class="bg-slate-950 text-slate-100 font-sans-clean min-h-screen overflow-x-hidden selection:bg-cyan-500 selection:text-black">
+    
+    <!-- SYSTEM ALERTS BOX (Replaces alert()) -->
+    <div id="system-alert" class="hidden fixed top-6 right-6 z-50 max-w-sm cyber-glass border-l-4 border-cyan-400 p-4 rounded shadow-2xl transition-all duration-300 transform translate-x-10 opacity-0">
+        <div class="flex items-start space-x-3">
+            <div class="flex-shrink-0 text-cyan-400">
+                <svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </div>
             <div>
-                <h1 class="text-xl font-extrabold tracking-wider bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent flex items-center gap-2">
-                    VISAGESCAN <span class="bg-cyan-500/10 text-cyan-400 text-[10px] px-2 py-0.5 rounded border border-cyan-500/30 font-mono tracking-widest uppercase">FaceAR v3.0</span>
-                </h1>
-                <p class="text-xs text-slate-400">Escáner Biométrico Facial 3D y Analizador de Simetría IA</p>
+                <h4 class="font-cyber text-xs tracking-widest text-cyan-400 uppercase">Notificación del Sistema</h4>
+                <p id="system-alert-text" class="text-xs text-slate-300 mt-1 font-mono-sci">Inicializando parámetros...</p>
             </div>
+            <button onclick="hideAlert()" class="text-slate-400 hover:text-white font-bold">&times;</button>
         </div>
+    </div>
+
+    <!-- TERMINAL SCREEN / INTRO INTERFACE -->
+    <div id="welcome-screen" class="fixed inset-0 z-40 bg-slate-950 flex flex-col items-center justify-center p-6 transition-all duration-700">
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,100,120,0.15),transparent_70%)]"></div>
         
-        <!-- Controls in Header -->
-        <div class="flex flex-wrap items-center gap-3">
-            <button id="toggleInstructions" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs transition duration-200 flex items-center gap-1">
-                <i class="fa-solid fa-circle-question text-cyan-400"></i> Manual del Escáner
-            </button>
-            <div class="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-lg border border-slate-800 text-xs">
-                <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping mr-1" id="statusIndicatorPing"></span>
-                <span id="statusText" class="text-slate-300 font-mono">Iniciando...</span>
-            </div>
-        </div>
-    </header>
-
-    <!-- Main Workspace Container -->
-    <main class="flex-1 overflow-hidden flex flex-col lg:flex-row">
-        
-        <!-- Mobile Layout Tabs -->
-        <div class="flex lg:hidden bg-slate-900 border-b border-slate-800 shrink-0">
-            <button onclick="switchTab('tab-ar')" id="btn-tab-ar" class="flex-1 py-3 text-center font-semibold text-xs border-b-2 border-cyan-500 text-cyan-400 flex justify-center items-center gap-2">
-                <i class="fa-solid fa-camera"></i> Cámara AR
-            </button>
-            <button onclick="switchTab('tab-twin')" id="btn-tab-twin" class="flex-1 py-3 text-center font-semibold text-xs border-b-2 border-transparent text-slate-400 flex justify-center items-center gap-2">
-                <i class="fa-solid fa-cube"></i> Rostro 3D
-            </button>
-            <button onclick="switchTab('tab-coach')" id="btn-tab-coach" class="flex-1 py-3 text-center font-semibold text-xs border-b-2 border-transparent text-slate-400 flex justify-center items-center gap-2">
-                <i class="fa-solid fa-chart-bar"></i> Análisis Facial
-            </button>
-        </div>
-
-        <!-- Left Panel: AR Camera & Real-time biometric readings -->
-        <div id="panel-ar" class="flex-1 lg:flex-[1.2] p-4 lg:p-6 overflow-y-auto flex flex-col gap-6 h-full">
+        <div class="max-w-xl w-full cyber-glass border border-cyan-500/30 p-8 rounded-xl text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-cyan-400"></div>
+            <div class="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-cyan-400"></div>
+            <div class="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-cyan-400"></div>
+            <div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-cyan-400"></div>
             
-            <!-- Real-time Camera Feed Card -->
-            <div class="relative bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex-1 min-h-[350px] md:min-h-[480px] flex flex-col neon-glow-cyan">
-                <!-- Camera Header Controls -->
-                <div class="absolute top-4 left-4 right-4 flex justify-between items-center z-10 pointer-events-none">
-                    <div class="bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-800 pointer-events-auto flex items-center gap-2">
-                        <i class="fa-solid fa-video text-cyan-400"></i>
-                        <select id="cameraSelect" class="bg-transparent text-xs text-slate-200 outline-none border-none cursor-pointer font-mono pr-2">
-                            <option value="" class="bg-slate-900 text-slate-200">Cargando cámaras...</option>
-                        </select>
-                    </div>
-                    
-                    <div class="flex gap-2">
-                        <button id="toggleOverlay" class="pointer-events-auto bg-slate-950/80 backdrop-blur-md p-2 rounded-lg border border-slate-800 text-cyan-400 hover:text-white hover:border-cyan-500/50 transition duration-150" title="Alternar Malla">
-                            <i class="fa-solid fa-border-none"></i>
-                        </button>
-                        <button id="btnFlipCamera" class="pointer-events-auto bg-slate-950/80 backdrop-blur-md p-2 rounded-lg border border-slate-800 text-slate-300 hover:text-cyan-400 hover:border-cyan-500/50 transition duration-150" title="Rotar Cámara">
-                            <i class="fa-solid fa-camera-rotate"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Video Viewport -->
-                <div class="relative flex-1 w-full h-full min-h-0 overflow-hidden flex items-center justify-center bg-slate-950">
-                    <video id="webcam" class="absolute w-full h-full object-cover scale-x-[-1]" playsinline autoplay muted></video>
-                    <canvas id="arCanvas" class="absolute w-full h-full object-cover scale-x-[-1]"></canvas>
-                    
-                    <!-- Tech HUD Overlays -->
-                    <div class="absolute inset-0 pointer-events-none border-[3px] border-cyan-500/10 m-3 rounded-xl flex flex-col justify-between p-4">
-                        <div class="flex justify-between text-[10px] text-cyan-400/50 font-mono">
-                            <span>FACEMESH ACTIVE // 468 LANDMARKS</span>
-                            <span>ASYMMETRY ENGINE</span>
-                        </div>
-                        
-                        <!-- Initializing overlay -->
-                        <div id="scanningStateOverlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 transition duration-500">
-                            <div class="w-16 h-16 rounded-full border-4 border-slate-800 border-t-cyan-500 animate-spin mb-4"></div>
-                            <h3 class="font-bold text-lg text-cyan-400 mb-1">Cargando Modelos Neuronales de Rostro</h3>
-                            <p class="text-sm text-slate-400 max-w-sm">Inicializando rastreo facial geométrico de alta fidelidad para capturar micro-movimientos.</p>
-                        </div>
-
-                        <!-- Calibration Assist Frame -->
-                        <div id="calibrationFrame" class="hidden absolute inset-0 flex items-center justify-center bg-cyan-500/5 transition duration-300">
-                            <div class="border-2 border-dashed border-cyan-400/30 w-[60%] h-[75%] rounded-[100px] flex items-center justify-center animate-pulse">
-                                <p class="text-xs text-cyan-400/60 font-mono uppercase bg-slate-950/80 px-3 py-1.5 rounded-lg border border-cyan-500/10">Alinea tu rostro dentro del óvalo</p>
-                            </div>
-                        </div>
-
-                        <div class="flex justify-between items-end text-[10px] text-emerald-400/40 font-mono">
-                            <span>FPS: <span id="fpsCounter" class="text-emerald-400">00</span></span>
-                            <span>MESH INTEGRITY: <span id="poseIntegrity" class="text-emerald-400">0%</span></span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Capture & Action Deck -->
-                <div class="bg-slate-950 p-4 border-t border-slate-800 flex flex-col md:flex-row gap-3 items-center justify-between">
-                    <div class="text-xs text-slate-400 text-center md:text-left">
-                        <span class="font-semibold text-slate-300">Análisis Facial:</span> Sonríe, parpadea o habla libremente mientras observas el gemelo 3D imitar tus gestos.
-                    </div>
-                    <button id="btnCapture" class="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-bold rounded-xl transition duration-200 transform hover:scale-105 shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-scan text-lg"></i> CAPTURAR SIMETRÍA Y EXPRESIÓN
-                    </button>
-                </div>
-            </div>
-
-            <!-- Real-time Biometrics Readout Panel -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 hover:border-slate-700/50 transition">
-                    <span class="text-[10px] font-mono tracking-wider text-slate-400 uppercase">Simetría Facial</span>
-                    <div class="text-xl font-bold font-mono text-cyan-400 mt-1 flex items-baseline gap-1">
-                        <span id="faceSymmetry">--%</span>
-                    </div>
-                    <p id="symmetryStatus" class="text-[10px] text-slate-500 mt-1 font-medium">Buscando datos...</p>
-                </div>
-                <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 hover:border-slate-700/50 transition">
-                    <span class="text-[10px] font-mono tracking-wider text-slate-400 uppercase">Apertura Mandíbula</span>
-                    <div class="text-xl font-bold font-mono text-cyan-400 mt-1 flex items-baseline gap-1">
-                        <span id="jawOpening">--%</span>
-                    </div>
-                    <p id="jawStatus" class="text-[10px] text-slate-500 mt-1 font-medium">Buscando datos...</p>
-                </div>
-                <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 hover:border-slate-700/50 transition">
-                    <span class="text-[10px] font-mono tracking-wider text-slate-400 uppercase">Parpadeo Izq. / Der.</span>
-                    <div class="text-sm font-bold font-mono text-emerald-400 mt-1 flex items-baseline gap-1">
-                        <span id="eyeLeftStatus">--</span> <span class="text-slate-500">/</span> <span id="eyeRightStatus">--</span>
-                    </div>
-                    <p class="text-[10px] text-slate-500 mt-1 font-medium">Estado ocular dinámico</p>
-                </div>
-                <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 hover:border-slate-700/50 transition">
-                    <span class="text-[10px] font-mono tracking-wider text-slate-400 uppercase">Rotación (Yaw/Pitch)</span>
-                    <div class="text-sm font-bold font-mono text-emerald-400 mt-1 flex items-baseline gap-1">
-                        <span id="headRotation">--° / --°</span>
-                    </div>
-                    <p class="text-[10px] text-slate-500 mt-1 font-medium">Ángulo estimado</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Right Panel: Split into 3D Face Mimic & IA Analysis Panel -->
-        <div id="panel-aside" class="hidden lg:flex flex-1 lg:flex-[0.8] border-t lg:border-t-0 lg:border-l border-slate-800 bg-slate-950 flex-col h-full overflow-hidden">
+            <h1 class="font-cyber text-2xl md:text-4xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-fuchsia-400 mb-2">
+                AURASCAN AR
+            </h1>
+            <p class="font-mono-sci text-xs md:text-sm text-cyan-400 tracking-widest mb-6">SISTEMA INTEGRADO DE DIAGNÓSTICO BIOMÉTRICO v3.14</p>
             
-            <!-- 3D Face Mimic Module -->
-            <div id="view3d-container" class="flex-1 min-h-[250px] relative border-b border-slate-800 flex flex-col">
-                <div class="absolute top-4 left-4 z-10">
-                    <h3 class="text-xs font-bold font-mono text-slate-300 flex items-center gap-2 bg-slate-900/90 backdrop-blur border border-slate-800 px-2.5 py-1.5 rounded-lg">
-                        <i class="fa-solid fa-cube text-emerald-400 animate-spin-slow"></i> GEMELO BIOMÉTRICO 3D (REPLICADOR)
-                    </h3>
-                </div>
-                <div class="absolute bottom-4 right-4 z-10 flex gap-2">
-                    <button id="resetCamera3D" class="bg-slate-900/90 backdrop-blur text-slate-300 border border-slate-800 hover:border-cyan-500/30 text-[10px] px-2.5 py-1.5 rounded-md font-mono flex items-center gap-1">
-                        <i class="fa-solid fa-arrows-to-eye"></i> Centrar Rostro
-                    </button>
-                </div>
-                <!-- 3D Canvas Area -->
-                <div id="threeJsCanvasContainer" class="w-full flex-1 bg-[#05070c]"></div>
-            </div>
-
-            <!-- AI Biometric Analyst Module -->
-            <div id="coach-container" class="flex-1 min-h-[300px] overflow-y-auto p-6 flex flex-col bg-slate-900/30">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-bold text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-brain text-cyan-400"></i> Analizador Neuronal de Simetría
-                    </h3>
-                    <span class="text-xs font-mono text-slate-400">Gemini 3 Flash</span>
-                </div>
-
-                <!-- Placeholder & Output State for AI response -->
-                <div id="aiResponseContainer" class="flex-1 flex flex-col justify-center items-center text-center p-4 bg-slate-900/50 border border-slate-800/80 rounded-2xl min-h-[180px]">
-                    <div id="aiEmptyState">
-                        <div class="w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 mx-auto mb-3">
-                            <i class="fa-solid fa-wand-magic-sparkles text-xl"></i>
-                        </div>
-                        <h4 class="font-semibold text-slate-300 text-sm mb-1">Esperando Datos Gestuales</h4>
-                        <p class="text-xs text-slate-500 max-w-xs mx-auto">Mira fijamente la cámara, realiza un gesto y pulsa "Capturar Simetría y Expresión" para procesar tu mapeo morfológico neuronal.</p>
-                    </div>
-
-                    <!-- Loader State -->
-                    <div id="aiLoaderState" class="hidden">
-                        <div class="relative w-16 h-16 mx-auto mb-4">
-                            <div class="absolute inset-0 rounded-full border-4 border-cyan-500/10 border-t-cyan-400 animate-spin"></div>
-                            <div class="absolute inset-2 rounded-full border-4 border-dashed border-emerald-400/10 border-t-emerald-400 animate-spin-slow"></div>
-                        </div>
-                        <h4 class="font-bold text-slate-200 text-sm mb-1 font-mono">PROCESANDO MALLA VECTORIAL</h4>
-                        <p class="text-xs text-slate-400 max-w-xs mx-auto">Calculando distancias inter-pupilares, desviaciones de plano maxilar y modelando el mapa de simetría facial...</p>
-                    </div>
-
-                    <!-- Real Response State -->
-                    <div id="aiResponseContent" class="hidden w-full text-left text-xs text-slate-300 leading-relaxed overflow-hidden">
-                        <!-- Dynamic generated diagnosis goes here -->
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </main>
-
-    <!-- Instructions Dialog / Modal -->
-    <div id="instructionsModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl relative">
-            <button id="closeInstructions" class="absolute top-4 right-4 text-slate-400 hover:text-white transition">
-                <i class="fa-solid fa-xmark text-xl"></i>
-            </button>
-            <div class="flex items-center gap-3 mb-4">
-                <div class="w-10 h-10 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center">
-                    <i class="fa-solid fa-face-smile text-xl"></i>
-                </div>
-                <h3 class="font-bold text-lg text-slate-100">Guía de Escaneo Facial</h3>
+            <div class="space-y-4 mb-8 text-left text-xs md:text-sm text-slate-300 border-y border-slate-800 py-6 font-mono-sci">
+                <div class="flex justify-between items-center"><span class="text-slate-500">&gt; NUCLEO NEURAL:</span><span class="text-emerald-400">ACTIVO</span></div>
+                <div class="flex justify-between items-center"><span class="text-slate-500">&gt; ALINEACION DE MALLA:</span><span class="text-cyan-400">HOLOGRAFÍA AR</span></div>
+                <div class="flex justify-between items-center"><span class="text-slate-500">&gt; ESTADO DEL ESCÁNER:</span><span class="text-amber-400">PULSOS DINÁMICOS</span></div>
+                <p class="text-slate-400 leading-relaxed mt-4 font-sans-clean text-xs">
+                    Esta aplicación requiere acceso a tu cámara web para proyectar la máscara holográfica AR y analizar tus rasgos en tiempo real. No almacenamos tus datos biométricos.
+                </p>
             </div>
             
-            <div class="space-y-4 text-sm text-slate-300">
-                <div class="flex gap-3">
-                    <span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">1</span>
-                    <p><strong class="text-slate-100">Permiso de Cámara:</strong> Habilita la cámara de tu teléfono o portátil para arrancar el rastreador.</p>
-                </div>
-                <div class="flex gap-3">
-                    <span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">2</span>
-                    <p><strong class="text-slate-100">Alineación Básica:</strong> Colócate de frente al objetivo hasta que el rastreador dibuje la malla cibernética sobre tu cara.</p>
-                </div>
-                <div class="flex gap-3">
-                    <span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">3</span>
-                    <p><strong class="text-slate-100">Prueba los Gestos:</strong> Sonríe, abre la boca, parpadea o gira la cabeza para observar el comportamiento dinámico del clon en 3D.</p>
-                </div>
-                <div class="flex gap-3">
-                    <span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">4</span>
-                    <p><strong class="text-slate-100">Análisis Científico:</strong> Presiona "Capturar Simetría" y recibe un diagnóstico completo sobre tu musculatura y proporciones faciales.</p>
-                </div>
-            </div>
-
-            <button id="btnUnderstand" class="w-full mt-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl transition duration-150">
-                ¡Iniciar Escáner Facial!
+            <button id="btn-initialize" class="w-full py-4 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-slate-950 font-cyber font-extrabold tracking-widest rounded-lg shadow-lg shadow-cyan-500/20 transform hover:-translate-y-0.5 transition active:translate-y-0">
+                INICIALIZAR MÓDULO AR
             </button>
         </div>
     </div>
 
+    <!-- MAIN APP LAYOUT -->
+    <main class="hidden flex flex-col min-h-screen relative pb-12">
+        <!-- HEADER -->
+        <header class="w-full border-b border-slate-900 bg-slate-950/80 backdrop-blur-md py-4 px-6 flex flex-col md:flex-row justify-between items-center gap-4 z-20">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-tr from-cyan-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <svg class="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                </div>
+                <div>
+                    <h2 class="font-cyber text-lg tracking-wide bg-gradient-to-r from-cyan-400 to-teal-300 bg-clip-text text-transparent font-bold">AURASCAN AR</h2>
+                    <p class="font-mono-sci text-2xs text-cyan-500/70 tracking-widest leading-none">ANALIZADOR DE RITMOS BIOÉCTRICOS</p>
+                </div>
+            </div>
+
+            <!-- Global Scanner Stats (Top Bar) -->
+            <div class="flex items-center space-x-6 font-mono-sci text-xs">
+                <div class="hidden sm:block">
+                    <span class="text-slate-500">PING DE ENLACE:</span>
+                    <span class="text-emerald-400 ml-1" id="network-ping">12ms</span>
+                </div>
+                <div class="hidden sm:block">
+                    <span class="text-slate-500">RETÍCULA AR:</span>
+                    <span class="text-cyan-400 ml-1">VECTOR-MATRIX v2</span>
+                </div>
+                <button id="btn-audio-toggle" class="px-3 py-1.5 rounded border border-slate-800 text-slate-400 hover:text-cyan-400 transition flex items-center gap-1.5">
+                    <span id="audio-icon">🔊</span>
+                    <span class="text-2xs font-cyber tracking-widest uppercase">AUDIO ACTIVO</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- DASHBOARD CONTAINER -->
+        <div class="flex-grow max-w-7xl w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            
+            <!-- COLUMN LEFT: CAMERA VIEWPORT & INTERACTION (7 Cols) -->
+            <section class="lg:col-span-7 flex flex-col space-y-4">
+                
+                <!-- CAMERA FRAME & CANVAS AR OVERLAY -->
+                <div class="relative w-full aspect-[4/3] sm:aspect-video md:aspect-[4/3] lg:aspect-video rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-2xl flex items-center justify-center crt-overlay">
+                    
+                    <!-- Neon Frame Corners -->
+                    <div class="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-cyan-400 z-20 pointer-events-none"></div>
+                    <div class="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-cyan-400 z-20 pointer-events-none"></div>
+                    <div class="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-cyan-400 z-20 pointer-events-none"></div>
+                    <div class="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-cyan-400 z-20 pointer-events-none"></div>
+
+                    <!-- Scan laser animation line -->
+                    <div id="scanning-laser" class="hidden absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent z-10 animate-scanline pointer-events-none"></div>
+
+                    <!-- Raw Video (Hidden from plain view, rendered onto canvas for AR overlays) -->
+                    <video id="webcam" class="hidden" autoplay playsinline muted></video>
+
+                    <!-- Main Interactive Canvas -->
+                    <canvas id="ar-canvas" class="w-full h-full object-cover z-0 cursor-crosshair"></canvas>
+
+                    <!-- Virtual Face Mesh Guide (Static fallback if webcam not allowed or during calibration) -->
+                    <div id="camera-loading" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 z-20 text-center p-6 space-y-4 transition-all">
+                        <div class="relative w-20 h-20">
+                            <div class="absolute inset-0 rounded-full border-4 border-slate-800"></div>
+                            <div class="absolute inset-0 rounded-full border-4 border-cyan-400 border-t-transparent animate-spin"></div>
+                            <span class="absolute inset-0 flex items-center justify-center font-cyber text-2xs text-cyan-400">AR</span>
+                        </div>
+                        <div>
+                            <p class="font-cyber text-sm tracking-widest text-slate-100">INICIALIZANDO LENTE DE CAPTURA</p>
+                            <p class="font-mono-sci text-xs text-cyan-500 mt-1">Obteniendo coordenadas faciales...</p>
+                        </div>
+                    </div>
+
+                    <!-- HUD Overlays (Absolute UI Inside Stream) -->
+                    <div class="absolute bottom-4 left-4 z-20 font-mono-sci text-3xs text-cyan-400/80 space-y-1 select-none hidden sm:block">
+                        <div>&gt; RESOLUTION: <span id="hud-resolution">1280x720</span></div>
+                        <div>&gt; FACIAL COORDS: <span id="hud-coords">TRACKING ACTIVE</span></div>
+                        <div>&gt; NOISE STABILIZER: ON [98.4%]</div>
+                    </div>
+                    
+                    <div class="absolute bottom-4 right-4 z-20 select-none">
+                        <span id="scan-status-badge" class="px-2.5 py-1 rounded bg-cyan-950/80 border border-cyan-400 text-cyan-300 font-cyber text-3xs tracking-widest flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-ping"></span>
+                            SISTEMA LISTO
+                        </span>
+                    </div>
+
+                    <div class="absolute top-4 left-4 z-20 font-mono-sci text-xs select-none">
+                        <div class="px-2 py-1 bg-slate-950/80 border border-slate-800 rounded flex items-center gap-1.5 text-slate-300">
+                            <span class="text-rose-500 animate-pulse">●</span> REC FEED
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTROLS & CALIBRATION INTERFACE -->
+                <div class="cyber-glass p-4 rounded-xl flex flex-col md:flex-row gap-4 items-center justify-between relative overflow-hidden">
+                    <div class="text-center md:text-left">
+                        <h3 class="font-cyber text-xs tracking-wider text-slate-300">MODO ESCÁNER DE ENERGÍA</h3>
+                        <p class="text-xs text-slate-400 mt-1 font-sans-clean leading-snug">Mantén tu rostro centrado dentro del visor AR y presiona Iniciar Escaneo.</p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 w-full md:w-auto justify-center">
+                        <button id="btn-scan" class="flex-grow md:flex-grow-0 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-cyber font-bold text-xs tracking-widest rounded-lg hover:brightness-110 active:scale-95 transition flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/10">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h2M4 8h16"></path></svg>
+                            INICIAR ESCANEO
+                        </button>
+                        
+                        <button id="btn-randomize" class="px-4 py-3 border border-slate-800 hover:border-cyan-500/50 hover:bg-cyan-500/10 text-slate-300 font-cyber text-2xs tracking-wider rounded-lg transition" title="Cambiar filtro facial">
+                            REFRESCAR MALLA
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CHOOSE MESH COVERS & FILTERS -->
+                <div class="cyber-glass p-4 rounded-xl">
+                    <h4 class="font-cyber text-2xs tracking-widest text-slate-400 mb-3">FILTROS HOLOGRÁFICOS DE REALIDAD AUMENTADA</h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <button class="filter-btn px-3 py-2 rounded bg-slate-900 border border-cyan-400/40 text-cyan-400 font-mono-sci text-xs hover:bg-cyan-950/20 transition active" data-filter="normal">
+                            NORMAL
+                        </button>
+                        <button class="filter-btn px-3 py-2 rounded bg-slate-900 border border-slate-800 text-slate-400 font-mono-sci text-xs hover:border-emerald-500/50 hover:text-emerald-400 transition" data-filter="matrix">
+                            MATRIX HACK
+                        </button>
+                        <button class="filter-btn px-3 py-2 rounded bg-slate-900 border border-slate-800 text-slate-400 font-mono-sci text-xs hover:border-purple-500/50 hover:text-purple-400 transition" data-filter="thermal">
+                            TERMOGRÁFICO
+                        </button>
+                        <button class="filter-btn px-3 py-2 rounded bg-slate-900 border border-slate-800 text-slate-400 font-mono-sci text-xs hover:border-amber-500/50 hover:text-amber-400 transition" data-filter="glitch">
+                            GLITCH VIRTUAL
+                        </button>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- COLUMN RIGHT: BIOMETRIC RESULTS & STATISTICS (5 Cols) -->
+            <section class="lg:col-span-5 flex flex-col space-y-4">
+                
+                <!-- DIAGNOSTICS & NEURAL ANALYSIS PANEL -->
+                <div class="cyber-glass p-6 rounded-xl flex-grow flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-16 h-16 pointer-events-none overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 border-b border-l border-slate-800 rotate-45 transform translate-x-12 -translate-y-12"></div>
+                    </div>
+
+                    <!-- Title -->
+                    <div class="border-b border-slate-900 pb-4 mb-4">
+                        <h3 class="font-cyber text-sm tracking-widest text-cyan-400 flex items-center gap-2">
+                            <span class="inline-block w-2.5 h-2.5 bg-cyan-400 animate-pulse rounded-sm"></span>
+                            ANÁLISIS NEURAL BIOMÉTRICO
+                        </h3>
+                        <p class="font-mono-sci text-2xs text-slate-500 tracking-wider">MÉTRICAS ESTIMADAS BASADAS EN FLUJO DÉRMICO Y ASIMETRÍA</p>
+                    </div>
+
+                    <!-- Scanning / Result Screen -->
+                    <div class="flex-grow flex flex-col justify-center py-4" id="results-container">
+                        <!-- Idle state -->
+                        <div id="idle-results-state" class="text-center py-8 space-y-4">
+                            <div class="text-6xl animate-bounce">🔬</div>
+                            <div class="space-y-1">
+                                <p class="font-cyber text-xs tracking-widest text-slate-300">DISPOSITIVO ADAPTADO Y LISTO</p>
+                                <p class="font-mono-sci text-2xs text-slate-500">Esperando captura facial activa para generar lectura del humor</p>
+                            </div>
+                        </div>
+
+                        <!-- Scan In Progress Animation -->
+                        <div id="scanning-results-state" class="hidden text-center py-6 space-y-6">
+                            <div class="relative w-24 h-24 mx-auto">
+                                <div class="absolute inset-0 border-2 border-dashed border-cyan-400 rounded-full animate-spin"></div>
+                                <div class="absolute inset-4 border border-fuchsia-500 rounded-full animate-pulse flex items-center justify-center">
+                                    <span class="font-cyber text-xs text-fuchsia-400">X-RAY</span>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                <p class="font-cyber text-xs tracking-wider text-cyan-400 uppercase animate-pulse">Desencriptando Rasgos Expresivos...</p>
+                                <div class="w-full bg-slate-900 h-1.5 rounded overflow-hidden max-w-xs mx-auto">
+                                    <div id="progress-bar-scan" class="h-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 w-0 transition-all duration-300"></div>
+                                </div>
+                                <p id="scanning-phase-text" class="font-mono-sci text-3xs text-slate-500 tracking-widest">MAPEO TERMÓGENO...</p>
+                            </div>
+                        </div>
+
+                        <!-- Active diagnosed Mood State -->
+                        <div id="active-results-state" class="hidden space-y-6">
+                            <!-- Diagnostic Circle Header -->
+                            <div class="flex items-center space-x-4">
+                                <div id="mood-avatar-container" class="w-16 h-16 rounded-full flex items-center justify-center text-3xl shadow-lg border-2">
+                                    😊
+                                </div>
+                                <div>
+                                    <span class="font-mono-sci text-3xs tracking-widest text-slate-500">DIAGNÓSTICO FINAL</span>
+                                    <h4 id="mood-title" class="font-cyber text-lg tracking-wide uppercase text-cyan-400">Eufórico</h4>
+                                    <p id="mood-subtitle" class="font-mono-sci text-2xs text-cyan-400/80">ALTA FRECUENCIA VIBRATORIA</p>
+                                </div>
+                            </div>
+
+                            <!-- Description -->
+                            <div class="p-4 rounded-lg bg-slate-900/60 border border-slate-800/80">
+                                <p id="mood-desc" class="text-xs text-slate-300 leading-relaxed font-sans-clean">
+                                    Se detectan micro-contracciones asimétricas cerca de los ojos y un flujo térmico ascendente consistente con altos índices de dopamina.
+                                </p>
+                            </div>
+
+                            <!-- Diagnostic Metrics Graphs -->
+                            <div class="space-y-3 font-mono-sci text-2xs">
+                                <div>
+                                    <div class="flex justify-between text-slate-400 mb-1">
+                                        <span>SIMETRÍA EXPRESIVA</span>
+                                        <span id="metric-symmetry">92.4%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-950 h-1 rounded overflow-hidden">
+                                        <div id="bar-symmetry" class="h-full bg-emerald-400" style="width: 92.4%"></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="flex justify-between text-slate-400 mb-1">
+                                        <span>ACTIVIDAD NEURO-TRANSMISORA</span>
+                                        <span id="metric-neuro">81.1%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-950 h-1 rounded overflow-hidden">
+                                        <div id="bar-neuro" class="h-full bg-cyan-400" style="width: 81.1%"></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="flex justify-between text-slate-400 mb-1">
+                                        <span>PULSO OPTICO ESTIMADO</span>
+                                        <span id="metric-pulse">78 BPM</span>
+                                    </div>
+                                    <div class="w-full bg-slate-950 h-1 rounded overflow-hidden">
+                                        <div id="bar-pulse" class="h-full bg-fuchsia-400" style="width: 78%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Diagnostic Summary -->
+                    <div class="border-t border-slate-900 pt-4 mt-4 font-mono-sci text-3xs text-slate-500 space-y-1">
+                        <div>&gt; HOLOGRAPH OVERLAY STATUS: <span class="text-emerald-400">CALIBRATED</span></div>
+                        <div>&gt; CHRONO-MEASURE TIME: <span id="diagnose-time">0.000s</span></div>
+                        <div class="flex items-center justify-between text-slate-400 mt-2">
+                            <span>REGISTROS HISTÓRICOS DE ESCANEO</span>
+                            <button id="btn-clear-history" class="hover:text-cyan-400 transition underline">LIMPIAR</button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- HISTORIC LIST OF PREVIOUS SCANNINGS -->
+                <div class="cyber-glass p-4 rounded-xl flex flex-col h-40">
+                    <h4 class="font-cyber text-2xs tracking-widest text-slate-400 mb-2">REMANENTE BIOÉCTRICO (HISTORIAL)</h4>
+                    <div id="history-container" class="flex-grow overflow-y-auto space-y-2 pr-1 text-2xs font-mono-sci">
+                        <!-- History items populated dynamically -->
+                        <div class="text-slate-500 text-center py-6 italic">No se han registrado diagnósticos de humor.</div>
+                    </div>
+                </div>
+
+            </section>
+        </div>
+
+        <!-- FOOTER & AUDIO HELPER -->
+        <footer class="w-full text-center mt-auto px-6 text-3xs font-mono-sci text-slate-600 select-none">
+            <p>AURASCAN AR // COMPILACIÓN DE SISTEMA 2026.1 // NO RECOGE NI RECONOCE DATOS PERSONALES PRIVADOS.</p>
+        </footer>
+    </main>
+
     <script>
-        // DOM Elements
-        const webcamElement = document.getElementById('webcam');
-        const arCanvasElement = document.getElementById('arCanvas');
-        const arCanvasCtx = arCanvasElement.getContext('2d');
-        const cameraSelect = document.getElementById('cameraSelect');
-        const btnFlipCamera = document.getElementById('btnFlipCamera');
-        const toggleOverlayBtn = document.getElementById('toggleOverlay');
-        const scanningStateOverlay = document.getElementById('scanningStateOverlay');
-        const calibrationFrame = document.getElementById('calibrationFrame');
-        const fpsCounter = document.getElementById('fpsCounter');
-        const poseIntegrity = document.getElementById('poseIntegrity');
-        const statusText = document.getElementById('statusText');
-        const statusPing = document.getElementById('statusIndicatorPing');
+        // --- CONSTANTS AND CONFIG ---
+        const MOODS_DATABASE = [
+            {
+                id: 'radiant',
+                title: 'Euforia Radiante',
+                subtitle: 'Saturación Dopamínica Máxima',
+                emoji: '✨',
+                color: '#22c55e', // Emerald
+                secondary: '#10b981',
+                desc: 'Los puntos clave en las comisuras orbiculares y cigomáticas muestran elevación constante. El espectro de calor facial apunta a altos niveles de endorfinas y serotonina optimizada.',
+                symmetry: 96.5,
+                neuro: 94.8,
+                pulse: 95
+            },
+            {
+                id: 'zen',
+                title: 'Zen Criogénico',
+                subtitle: 'Homeostasis Absoluta',
+                emoji: '🧘',
+                color: '#06b6d4', // Cyan
+                secondary: '#3b82f6',
+                desc: 'Se registra una simetría armónica del 99% con fluctuaciones biomecánicas mínimas. Tu espectro áurico emana estabilidad, baja frecuencia beta y ondas cerebrales alfa estables.',
+                symmetry: 98.9,
+                neuro: 35.2,
+                pulse: 62
+            },
+            {
+                id: 'overclocked',
+                title: 'Estresado en Overclock',
+                subtitle: 'Saturación de Cortisol Crítica',
+                emoji: '⚡',
+                color: '#ef4444', // Red
+                secondary: '#f97316',
+                desc: 'Micropulsos involuntarios en el párpado superior detectados. La contracción del macetero lateral indica estrés acumulado. Recomendación: Reiniciar sistema orgánico con cafeína reducida.',
+                symmetry: 74.2,
+                neuro: 99.1,
+                pulse: 115
+            },
+            {
+                id: 'misterioso',
+                title: 'Misterio Encriptado',
+                subtitle: 'Neutralidad Incongruente',
+                emoji: '🔮',
+                color: '#a855f7', // Purple
+                secondary: '#ec4899',
+                desc: 'Malla facial asimétrica indescifrable para el algoritmo estándar. El flujo térmico es mixto; es posible que estés ocultando un estado de humor sarcástico o planificando hackear la red.',
+                symmetry: 55.4,
+                neuro: 68.3,
+                pulse: 75
+            },
+            {
+                id: 'caotico',
+                title: 'Caótico Neutral',
+                subtitle: 'Disonancia Dinámica',
+                emoji: '👾',
+                color: '#f59e0b', // Amber
+                secondary: '#e11d48',
+                desc: 'Inestabilidad emocional microescala detectada. Las comisuras labiales oscilan entre la euforia y la apatía a gran velocidad. Eres un enigma biométrico indomable.',
+                symmetry: 81.3,
+                neuro: 88.6,
+                pulse: 88
+            },
+            {
+                id: 'melancolico',
+                title: 'Nostalgia de Neón',
+                subtitle: 'Reflejo Melancólico Estelar',
+                emoji: '🌌',
+                color: '#3b82f6', // Blue
+                secondary: '#6366f1',
+                desc: 'Frecuencia térmica concentrada bajo los conductos lagrimales. La simetría general decae levemente por retracción frontal. Diagnóstico: Soledad retro-futurista.',
+                symmetry: 88.1,
+                neuro: 48.9,
+                pulse: 68
+            }
+        ];
+
+        // --- GLOBAL STATE ---
+        let stream = null;
+        let isScanning = false;
+        let currentFilter = 'normal';
+        let customFacePoints = []; // Dynamically generated face tracker points
+        let animationFrameId = null;
+        let audioCtx = null;
+        let isAudioMuted = false;
+        let scanProgress = 0;
+        let historyList = [];
+
+        // --- UI ELEMENTS ---
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const btnInitialize = document.getElementById('btn-initialize');
+        const mainLayout = document.querySelector('body > main');
+        const videoElement = document.getElementById('webcam');
+        const canvas = document.getElementById('ar-canvas');
+        const ctx = canvas.getContext('2d');
+        const cameraLoading = document.getElementById('camera-loading');
+        const btnScan = document.getElementById('btn-scan');
+        const btnRandomize = document.getElementById('btn-randomize');
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        const systemAlert = document.getElementById('system-alert');
+        const systemAlertText = document.getElementById('system-alert-text');
         
-        // Modal instructions
-        const instructionsModal = document.getElementById('instructionsModal');
-        const toggleInstructions = document.getElementById('toggleInstructions');
-        const closeInstructions = document.getElementById('closeInstructions');
-        const btnUnderstand = document.getElementById('btnUnderstand');
+        // Results elements
+        const idleResultsState = document.getElementById('idle-results-state');
+        const scanningResultsState = document.getElementById('scanning-results-state');
+        const activeResultsState = document.getElementById('active-results-state');
+        const progressBarScan = document.getElementById('progress-bar-scan');
+        const scanningPhaseText = document.getElementById('scanning-phase-text');
+        const moodAvatarContainer = document.getElementById('mood-avatar-container');
+        const moodTitle = document.getElementById('mood-title');
+        const moodSubtitle = document.getElementById('mood-subtitle');
+        const moodDesc = document.getElementById('mood-desc');
+        const metricSymmetry = document.getElementById('metric-symmetry');
+        const barSymmetry = document.getElementById('bar-symmetry');
+        const metricNeuro = document.getElementById('metric-neuro');
+        const barNeuro = document.getElementById('bar-neuro');
+        const metricPulse = document.getElementById('metric-pulse');
+        const barPulse = document.getElementById('bar-pulse');
+        const diagnoseTimeText = document.getElementById('diagnose-time');
+        const historyContainer = document.getElementById('history-container');
+        const btnClearHistory = document.getElementById('btn-clear-history');
+        const btnAudioToggle = document.getElementById('btn-audio-toggle');
+        const audioIcon = document.getElementById('audio-icon');
 
-        // Biometrics indicators
-        const valFaceSymmetry = document.getElementById('faceSymmetry');
-        const lblSymmetryStatus = document.getElementById('symmetryStatus');
-        const valJawOpening = document.getElementById('jawOpening');
-        const lblJawStatus = document.getElementById('jawStatus');
-        const valEyeLeftStatus = document.getElementById('eyeLeftStatus');
-        const valEyeRightStatus = document.getElementById('eyeRightStatus');
-        const valHeadRotation = document.getElementById('headRotation');
-
-        // Capture / AI interaction Elements
-        const btnCapture = document.getElementById('btnCapture');
-        const aiResponseContainer = document.getElementById('aiResponseContainer');
-        const aiEmptyState = document.getElementById('aiEmptyState');
-        const aiLoaderState = document.getElementById('aiLoaderState');
-        const aiResponseContent = document.getElementById('aiResponseContent');
-
-        // Application State
-        let isOverlayEnabled = true;
-        let isFrontCamera = true;
-        let activeStream = null;
-        let activeCameraHelper = null;
-        let faceMeshInstance = null;
-        let lastFrameTimestamp = Date.now();
-        let frameCount = 0;
-        let lastFpsUpdate = Date.now();
-        let currentLandmarks = null;
-        let detectedFaceMetrics = {
-            symmetryScore: 100,
-            jawOpeningPercent: 0,
-            eyeLeftOpen: true,
-            eyeRightOpen: true,
-            pitch: 0,
-            yaw: 0,
-            roll: 0
-        };
-
-        // 3D Engine Variables
-        let scene3D, camera3D, renderer3D, controls3D;
-        let facePoints3D; // THREE.Points representing face landmarks
-        let faceLines3D = []; // Array of LineSegments outlining contours
-
-        // Key Indices for Facial Contours Mapping (MediaPipe indexes)
-        const CONTOUR_INDEX_GROUPS = {
-            faceSilhouette: [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109, 10],
-            leftEye: [33, 7, 163, 144, 145, 153, 154, 155, 33, 246, 161, 160, 159, 158, 157, 173, 133],
-            rightEye: [263, 249, 390, 373, 374, 380, 381, 382, 263, 466, 388, 387, 386, 385, 384, 398, 362],
-            lipsOuter: [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 95, 88, 178, 61],
-            lipsInner: [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308, 415, 310, 311, 312, 13, 82, 81, 80, 191, 78],
-            leftEyebrow: [70, 63, 105, 66, 107, 55, 65, 52, 53, 46],
-            rightEyebrow: [300, 293, 334, 296, 336, 285, 295, 282, 283, 276]
-        };
-
-        function initThreeJS() {
-            const container = document.getElementById('threeJsCanvasContainer');
-            const width = container.clientWidth;
-            const height = container.clientHeight || 300;
-
-            // Scene creation
-            scene3D = new THREE.Scene();
-            scene3D.background = new THREE.Color('#05070c');
-            scene3D.fog = new THREE.FogExp2('#05070c', 0.12);
-
-            // Camera setting (Focused on face center)
-            camera3D = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
-            camera3D.position.set(0, 0, 4.5);
-
-            // Renderer setup
-            renderer3D = new THREE.WebGLRenderer({ antialias: true });
-            renderer3D.setSize(width, height);
-            renderer3D.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            container.appendChild(renderer3D.domElement);
-
-            // Controls
-            controls3D = new THREE.OrbitControls(camera3D, renderer3D.domElement);
-            controls3D.enableDamping = true;
-            controls3D.dampingFactor = 0.05;
-            controls3D.maxPolarAngle = Math.PI / 2 + 0.2;
-            controls3D.minDistance = 2;
-            controls3D.maxDistance = 10;
-
-            // Light sources
-            const ambientLight = new THREE.AmbientLight('#0f172a', 2);
-            scene3D.add(ambientLight);
-
-            const cyanLight = new THREE.DirectionalLight('#06b6d4', 2.5);
-            cyanLight.position.set(2, 4, 3);
-            scene3D.add(cyanLight);
-
-            const magentaLight = new THREE.PointLight('#ec4899', 3, 15);
-            magentaLight.position.set(-3, -2, 2);
-            scene3D.add(magentaLight);
-
-            // Grid Floor
-            const gridHelper = new THREE.GridHelper(10, 15, '#0891b2', '#1e293b');
-            gridHelper.position.y = -1.8;
-            scene3D.add(gridHelper);
-
-            // Create placeholders for face particles (468 points)
-            const particlesGeo = new THREE.BufferGeometry();
-            const positions = new Float32Array(468 * 3); // XYZ for 468 landmarks
-            particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-            const particleMat = new THREE.PointsMaterial({
-                color: '#06b6d4',
-                size: 0.025,
-                transparent: true,
-                opacity: 0.85
-            });
-
-            facePoints3D = new THREE.Points(particlesGeo, particleMat);
-            scene3D.add(facePoints3D);
-
-            // Initialize outline structures
-            const lineMat = new THREE.LineBasicMaterial({
-                color: '#10b981',
-                transparent: true,
-                opacity: 0.6,
-                linewidth: 2 // Supported depending on GPU drivers
-            });
-
-            Object.keys(CONTOUR_INDEX_GROUPS).forEach(groupName => {
-                const indices = CONTOUR_INDEX_GROUPS[groupName];
-                const lineGeo = new THREE.BufferGeometry();
-                const linePositions = new Float32Array(indices.length * 3);
-                lineGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
-                const lineMesh = new THREE.Line(lineGeo, lineMat.clone());
-                
-                // Color customization for cool contrast
-                if (groupName.includes('Eye')) lineMesh.material.color.set('#06b6d4');
-                if (groupName.includes('lips')) lineMesh.material.color.set('#ec4899');
-                
-                scene3D.add(lineMesh);
-                faceLines3D.push({ mesh: lineMesh, indices: indices });
-            });
-
-            // Handle container size alterations
-            window.addEventListener('resize', () => {
-                const w = container.clientWidth;
-                const h = container.clientHeight;
-                camera3D.aspect = w / h;
-                camera3D.updateProjectionMatrix();
-                renderer3D.setSize(w, h);
-            });
-
-            // Execution Loop
-            function animate() {
-                requestAnimationFrame(animate);
-                controls3D.update();
-                renderer3D.render(scene3D, camera3D);
+        // --- WEB AUDIO SYNTHESIZER ---
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
-            animate();
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
         }
 
-        function update3DFace(landmarks) {
-            if (!landmarks || !scene3D) return;
-
-            // MediaPipe coordinate scaling mapping to suitable ThreeJS dimensions
-            const scaleX = -2.8; 
-            const scaleY = -2.8;
-            const scaleZ = 2.0;
-            const offsetY = 0.2; // Vertical offset focusing
+        function playSound(type) {
+            if (isAudioMuted || !audioCtx) return;
             
-            // 1. Update Particle System Locations
-            const posAttr = facePoints3D.geometry.attributes.position;
-            for (let i = 0; i < 468; i++) {
-                const lm = landmarks[i];
-                if (lm) {
-                    posAttr.setXYZ(
-                        i,
-                        (lm.x - 0.5) * scaleX,
-                        (lm.y - 0.5) * scaleY + offsetY,
-                        (lm.z) * scaleZ
-                    );
-                }
-            }
-            posAttr.needsUpdate = true;
-
-            // 2. Update Connected contour line shapes
-            faceLines3D.forEach(lineItem => {
-                const linePosAttr = lineItem.mesh.geometry.attributes.position;
-                lineItem.indices.forEach((landmarkIdx, i) => {
-                    const lm = landmarks[landmarkIdx];
-                    if (lm) {
-                        linePosAttr.setXYZ(
-                            i,
-                            (lm.x - 0.5) * scaleX,
-                            (lm.y - 0.5) * scaleY + offsetY,
-                            (lm.z) * scaleZ
-                        );
-                    }
-                });
-                linePosAttr.needsUpdate = true;
-            });
-        }
-
-        // Helper button callback to restore viewport rotation target
-        document.getElementById('resetCamera3D').addEventListener('click', () => {
-            if (controls3D && camera3D) {
-                camera3D.position.set(0, 0, 4.5);
-                controls3D.target.set(0, 0, 0);
-                controls3D.update();
-            }
-        });
-
-        function setupMediaPipeFace() {
-            faceMeshInstance = new FaceMesh({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-            });
-
-            faceMeshInstance.setOptions({
-                maxNumFaces: 1,
-                refineLandmarks: true, // Crucial for precise eye/lip movements
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
-
-            faceMeshInstance.onResults(onFaceResults);
-            
-            statusText.textContent = "Iniciando Cámara...";
-            initCamera();
-        }
-
-        function drawHolographicOverlay(results) {
-            const width = arCanvasElement.width;
-            const height = arCanvasElement.height;
-            
-            arCanvasCtx.clearRect(0, 0, width, height);
-
-            if (!results.multiFaceLandmarks || !isOverlayEnabled) {
-                poseIntegrity.textContent = "0%";
-                poseIntegrity.className = "text-rose-500";
-                return;
-            }
-
-            const lms = results.multiFaceLandmarks[0];
-            poseIntegrity.textContent = "SINCRONIZADO";
-            poseIntegrity.className = "text-emerald-400";
-
-            arCanvasCtx.shadowBlur = 8;
-            arCanvasCtx.lineWidth = 1.5;
-
-            // Paint key contours onto camera preview
-            Object.keys(CONTOUR_INDEX_GROUPS).forEach(groupName => {
-                const indices = CONTOUR_INDEX_GROUPS[groupName];
-                
-                arCanvasCtx.beginPath();
-                indices.forEach((idx, i) => {
-                    const pt = lms[idx];
-                    if (pt) {
-                        if (i === 0) arCanvasCtx.moveTo(pt.x * width, pt.y * height);
-                        else arCanvasCtx.lineTo(pt.x * width, pt.y * height);
-                    }
-                });
-
-                // Styling logic
-                if (groupName.includes('Eye')) {
-                    arCanvasCtx.strokeStyle = '#06b6d4';
-                    arCanvasCtx.shadowColor = '#0891b2';
-                } else if (groupName.includes('lips')) {
-                    arCanvasCtx.strokeStyle = '#ec4899';
-                    arCanvasCtx.shadowColor = '#db2777';
-                } else {
-                    arCanvasCtx.strokeStyle = '#10b981';
-                    arCanvasCtx.shadowColor = '#059669';
-                }
-                arCanvasCtx.stroke();
-            });
-
-            // Draw subtle points on key facial anchor points
-            const anchorPoints = [4, 1, 33, 263, 152, 61, 291]; // Nose, Eyes, Chin, Lips edges
-            anchorPoints.forEach(idx => {
-                const pt = lms[idx];
-                if (pt) {
-                    arCanvasCtx.beginPath();
-                    arCanvasCtx.arc(pt.x * width, pt.y * height, 4, 0, 2 * Math.PI);
-                    arCanvasCtx.fillStyle = '#ffffff';
-                    arCanvasCtx.shadowBlur = 10;
-                    arCanvasCtx.shadowColor = '#06b6d4';
-                    arCanvasCtx.fill();
-                }
-            });
-        }
-
-        function processBiometrics(landmarks) {
-            if (!landmarks) return;
-
-            // 1. Calculate Facial Symmetry Index
-            // We compare left-to-center vs right-to-center distances
-            const centerNose = landmarks[1]; // Center of nose
-            const leftCheek = landmarks[234]; // Left outer boundary
-            const rightCheek = landmarks[454]; // Right outer boundary
-
-            if (centerNose && leftCheek && rightCheek) {
-                const distLeft = Math.sqrt(Math.pow(centerNose.x - leftCheek.x, 2) + Math.pow(centerNose.y - leftCheek.y, 2));
-                const distRight = Math.sqrt(Math.pow(centerNose.x - rightCheek.x, 2) + Math.pow(centerNose.y - rightCheek.y, 2));
-                
-                const ratio = Math.min(distLeft, distRight) / Math.max(distLeft, distRight);
-                const score = Math.round(ratio * 100);
-                
-                detectedFaceMetrics.symmetryScore = score;
-                valFaceSymmetry.textContent = `${score}%`;
-
-                if (score > 94) {
-                    symmetryStatus.textContent = "Simetría áurea ideal";
-                    symmetryStatus.className = "text-emerald-400 font-medium text-[10px]";
-                } else if (score > 85) {
-                    symmetryStatus.textContent = "Asimetría menor funcional";
-                    symmetryStatus.className = "text-amber-400 font-medium text-[10px]";
-                } else {
-                    symmetryStatus.textContent = "Variante estructural alta";
-                    symmetryStatus.className = "text-rose-400 font-medium text-[10px]";
-                }
-            }
-
-            // 2. Calculate Jaw Opening distance
-            const upperLip = landmarks[13];
-            const lowerLip = landmarks[14];
-            if (upperLip && lowerLip) {
-                const lipDist = Math.abs(lowerLip.y - upperLip.y);
-                const rawPercent = Math.min(100, Math.round(lipDist * 800)); // Calibrated multiplier
-                detectedFaceMetrics.jawOpeningPercent = rawPercent;
-                valJawOpening.textContent = `${rawPercent}%`;
-
-                if (rawPercent < 8) {
-                    jawStatus.textContent = "Sello labial cerrado";
-                    jawStatus.className = "text-slate-400 text-[10px]";
-                } else if (rawPercent < 45) {
-                    jawStatus.textContent = "Apertura para fonación";
-                    jawStatus.className = "text-cyan-400 text-[10px]";
-                } else {
-                    jawStatus.textContent = "Apertura maxilar profunda";
-                    jawStatus.className = "text-emerald-400 text-[10px]";
-                }
-            }
-
-            // 3. Eye Blinking / Openness ratios
-            const leftEyeTop = landmarks[159];
-            const leftEyeBottom = landmarks[145];
-            const rightEyeTop = landmarks[386];
-            const rightEyeBottom = landmarks[374];
-
-            if (leftEyeTop && leftEyeBottom && rightEyeTop && rightEyeBottom) {
-                const leftDist = Math.abs(leftEyeBottom.y - leftEyeTop.y);
-                const rightDist = Math.abs(rightEyeBottom.y - rightEyeTop.y);
-
-                const threshold = 0.015; // Normalized screen coordinates
-                const leftOpen = leftDist > threshold;
-                const rightOpen = rightDist > threshold;
-
-                detectedFaceMetrics.eyeLeftOpen = leftOpen;
-                detectedFaceMetrics.eyeRightOpen = rightOpen;
-
-                valEyeLeftStatus.textContent = leftOpen ? "Abierto" : "Cerrado";
-                valEyeLeftStatus.className = leftOpen ? "text-emerald-400" : "text-rose-400";
-                
-                valEyeRightStatus.textContent = rightOpen ? "Abierto" : "Cerrado";
-                valEyeRightStatus.className = rightOpen ? "text-emerald-400" : "text-rose-400";
-            }
-
-            // 4. Estimate basic head rotations (Pitch, Yaw, Roll)
-            const forehead = landmarks[10];
-            const chin = landmarks[152];
-            if (forehead && chin && centerNose) {
-                // Pitch (relative height difference of nose between forehead and chin)
-                const pitchRatio = (centerNose.y - forehead.y) / (chin.y - forehead.y);
-                const pitchDeg = Math.round((pitchRatio - 0.5) * 120);
-
-                // Yaw (Relative lateral position of nose)
-                const yawRatio = (centerNose.x - landmarks[234].x) / (landmarks[454].x - landmarks[234].x);
-                const yawDeg = Math.round((yawRatio - 0.5) * 120);
-
-                detectedFaceMetrics.pitch = pitchDeg;
-                detectedFaceMetrics.yaw = yawDeg;
-
-                valHeadRotation.textContent = `${yawDeg}° Y / ${pitchDeg}° P`;
-            }
-        }
-
-        // Processing callback from MediaPipe Pipeline
-        function onFaceResults(results) {
-            if (scanningStateOverlay && !scanningStateOverlay.classList.contains('hidden')) {
-                scanningStateOverlay.classList.add('hidden');
-                calibrationFrame.classList.remove('hidden');
-                setTimeout(() => {
-                    calibrationFrame.classList.add('hidden');
-                }, 4000);
-            }
-
-            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                currentLandmarks = results.multiFaceLandmarks[0];
-
-                // Synchronize 2D HUD representation
-                drawHolographicOverlay(results);
-
-                // Math & 3D Synchronization
-                processBiometrics(currentLandmarks);
-                update3DFace(currentLandmarks);
-            } else {
-                poseIntegrity.textContent = "0%";
-                poseIntegrity.className = "text-rose-500";
-            }
-
-            // Calculate rendering FPS
-            frameCount++;
-            const now = Date.now();
-            if (now - lastFpsUpdate >= 1000) {
-                fpsCounter.textContent = frameCount;
-                frameCount = 0;
-                lastFpsUpdate = now;
-            }
-        }
-
-        async function runAIFaceAnalysis() {
-            if (!currentLandmarks) {
-                alert("Por favor, asegúrate de alinear tu rostro frente a la cámara antes de iniciar el escaneo biométrico.");
-                return;
-            }
-
-            if (window.innerWidth < 1024) {
-                switchTab('tab-coach');
-            }
-
-            // UI feedback transitioning
-            aiEmptyState.classList.add('hidden');
-            aiResponseContent.classList.add('hidden');
-            aiLoaderState.classList.remove('hidden');
-
-            const systemPrompt = `
-                Actúa como un experto tecnólogo de reconocimiento biométrico facial y especialista médico en anatomía y estética humana.
-                Recibirás datos específicos de un análisis computarizado de cara. Debes generar un reporte técnico, futurista, claro y amigable en formato HTML estruturado.
-                Usa clases decorativas de Tailwind CSS adecuadas para combinar con un tema oscuro/cyberpunk (colores text-cyan-400, text-emerald-400, bg-slate-900, border-slate-800).
-                No incorpores etiquetas globales \`<html>\` ni \`<body>\`, únicamente la estructura interna en divs de diagnóstico.
-            `;
-
-            const userQuery = `
-                El sistema ha escaneado la estructura facial del usuario con los siguientes valores registrados:
-                - Índice de Simetría Facial Bilateral: ${detectedFaceMetrics.symmetryScore}% (Comparativa de distancias laterales con el puente nasal).
-                - Nivel de Apertura Labial/Maxilar: ${detectedFaceMetrics.jawOpeningPercent}% de desplazamiento.
-                - Parpados (Izq/Der): Izquierdo: ${detectedFaceMetrics.eyeLeftOpen ? 'Abierto' : 'Parpadeando/Cerrado'} / Derecho: ${detectedFaceMetrics.eyeRightOpen ? 'Abierto' : 'Parpadeando/Cerrado'}.
-                - Ángulos de Rotación Cabeza: Yaw: ${detectedFaceMetrics.yaw}°, Pitch: ${detectedFaceMetrics.pitch}°.
-
-                Por favor redacta:
-                1. Un análisis técnico de la simetría y tensión observada (explicando si ese puntaje es óptimo).
-                2. Interpretación de la expresión detectada (por ejemplo, si muestra asimetría de gesticulación o tensión mandibular).
-                3. Proporciona 2 ejercicios sencillos de estimulación muscular o alivio de tensión para relajar los músculos maseteros o mejorar el tono simétrico facial.
-            `;
-
             try {
-                const apiKey = ""; // Runtime auto-injected
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-
-                const payload = {
-                    contents: [{ parts: [{ text: userQuery }] }],
-                    systemInstruction: {
-                        parts: [{ text: systemPrompt }]
-                    }
-                };
-
-                let response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) throw new Error("No response from AI Server.");
-
-                const result = await response.json();
-                const textOutput = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                if (textOutput) {
-                    aiLoaderState.classList.add('hidden');
-                    aiResponseContent.innerHTML = cleanMarkdownAndHtml(textOutput);
-                    aiResponseContent.classList.remove('hidden');
-                } else {
-                    throw new Error("Respuesta vacía");
-                }
-
-            } catch (error) {
-                aiLoaderState.classList.add('hidden');
-                aiResponseContent.innerHTML = `
-                    <div class="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-center">
-                        <i class="fa-solid fa-triangle-exclamation text-rose-500 text-xl mb-2"></i>
-                        <h4 class="font-bold text-rose-400 mb-1">Fallo de Comunicación Neuronal</h4>
-                        <p class="text-xs text-slate-400">No pudimos procesar los datos morfológicos con el servidor de inteligencia artificial. Intenta realizar otra captura.</p>
-                        <button onclick="runAIFaceAnalysis()" class="mt-3 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs rounded-lg text-white font-mono">Reintentar</button>
-                    </div>
-                `;
-                aiResponseContent.classList.remove('hidden');
-            }
-        }
-
-        function cleanMarkdownAndHtml(rawContent) {
-            return rawContent.replace(/```html/gi, '').replace(/```/g, '').trim();
-        }
-
-        btnCapture.addEventListener('click', runAIFaceAnalysis);
-
-        async function initCamera() {
-            if (activeStream) {
-                activeStream.getTracks().forEach(track => track.stop());
-            }
-
-            statusText.textContent = "Conectando Video...";
-            statusPing.className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping mr-1";
-
-            const constraints = {
-                video: {
-                    facingMode: isFrontCamera ? "user" : "environment",
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                },
-                audio: false
-            };
-
-            try {
-                activeStream = await navigator.mediaDevices.getUserMedia(constraints);
-                webcamElement.srcObject = activeStream;
+                const now = audioCtx.currentTime;
                 
-                webcamElement.onloadedmetadata = () => {
-                    arCanvasElement.width = webcamElement.videoWidth;
-                    arCanvasElement.height = webcamElement.videoHeight;
+                if (type === 'click') {
+                    // Futuristic clean click
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1000, now);
+                    osc.frequency.exponentialRampToValueAtTime(150, now + 0.08);
                     
-                    if (activeCameraHelper) activeCameraHelper.stop();
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
                     
-                    activeCameraHelper = new Camera(webcamElement, {
-                        onFrame: async () => {
-                            await faceMeshInstance.send({ image: webcamElement });
-                        },
-                        width: webcamElement.videoWidth,
-                        height: webcamElement.videoHeight
-                    });
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } 
+                else if (type === 'scanning') {
+                    // Modulated scientific tick pulse
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(350, now);
+                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.15);
                     
-                    activeCameraHelper.start();
-                    statusText.textContent = "Escáner Activo";
-                    statusPing.className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse mr-1";
-                };
-
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                    
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                }
+                else if (type === 'laser') {
+                    // Heavy sweep laser sound
+                    const osc = audioCtx.createOscillator();
+                    const filter = audioCtx.createBiquadFilter();
+                    const gain = audioCtx.createGain();
+                    
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.6);
+                    
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(200, now);
+                    filter.frequency.exponentialRampToValueAtTime(2000, now + 0.6);
+                    
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+                    
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    
+                    osc.start(now);
+                    osc.stop(now + 0.65);
+                }
+                else if (type === 'success') {
+                    // Double synth success sound (perfect chords)
+                    const osc1 = audioCtx.createOscillator();
+                    const osc2 = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    
+                    osc1.type = 'sine';
+                    osc1.frequency.setValueAtTime(523.25, now); // C5
+                    osc1.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                    osc1.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                    
+                    osc2.type = 'triangle';
+                    osc2.frequency.setValueAtTime(261.63, now); // C4
+                    osc2.frequency.setValueAtTime(329.63, now + 0.1); // E4
+                    osc2.frequency.setValueAtTime(392.00, now + 0.2); // G4
+                    
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    
+                    osc1.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    
+                    osc1.start(now);
+                    osc2.start(now);
+                    osc1.stop(now + 0.4);
+                    osc2.stop(now + 0.4);
+                }
+                else if (type === 'alert') {
+                    // Caution buzzer
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.linearRampToValueAtTime(150, now + 0.2);
+                    
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                    
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                }
             } catch (err) {
-                statusText.textContent = "Lente Bloqueado";
-                statusPing.className = "inline-block w-2.5 h-2.5 rounded-full bg-rose-500 mr-1";
-                
-                scanningStateOverlay.innerHTML = `
-                    <div class="max-w-xs mx-auto p-4 bg-slate-900 border border-slate-800 rounded-2xl">
-                        <i class="fa-solid fa-video-slash text-rose-500 text-3xl mb-3"></i>
-                        <h3 class="font-bold text-slate-100 text-md mb-2">Permiso de Cámara Denegado</h3>
-                        <p class="text-xs text-slate-400 mb-4">Se requiere la cámara para poder mapear los puntos faciales e imitar tus movimientos.</p>
-                        <button onclick="initCamera()" class="w-full px-4 py-2 bg-cyan-500 text-slate-950 font-bold rounded-xl text-xs hover:bg-cyan-400 transition">Habilitar Cámara</button>
-                    </div>
-                `;
+                console.error("Audio Synthesis error: ", err);
             }
         }
 
-        async function populateCameras() {
+        // --- CAMERA SYSTEM & AVATAR FALLBACK ---
+        async function setupCamera() {
             try {
-                await navigator.mediaDevices.getUserMedia({ video: true });
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                
-                cameraSelect.innerHTML = '';
-                videoDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.text = device.label || `Cámara ${index + 1}`;
-                    option.className = "bg-slate-900 text-slate-200 text-xs";
-                    cameraSelect.appendChild(option);
+                // Request modern user camera
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
                 });
-
-                cameraSelect.addEventListener('change', async (e) => {
-                    const deviceId = e.target.value;
-                    if (activeStream) {
-                        activeStream.getTracks().forEach(track => track.stop());
-                    }
-                    const constraints = {
-                        video: { deviceId: { exact: deviceId } },
-                        audio: false
-                    };
-                    activeStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    webcamElement.srcObject = activeStream;
-                });
-
-            } catch (e) {}
-        }
-
-        btnFlipCamera.addEventListener('click', () => {
-            isFrontCamera = !isFrontCamera;
-            if (isFrontCamera) {
-                webcamElement.classList.add('scale-x-[-1]');
-                arCanvasElement.classList.add('scale-x-[-1]');
-            } else {
-                webcamElement.classList.remove('scale-x-[-1]');
-                arCanvasElement.classList.remove('scale-x-[-1]');
-            }
-            initCamera();
-        });
-
-        toggleOverlayBtn.addEventListener('click', () => {
-            isOverlayEnabled = !isOverlayEnabled;
-            if (isOverlayEnabled) {
-                toggleOverlayBtn.classList.remove('text-slate-400');
-                toggleOverlayBtn.classList.add('text-cyan-400');
-            } else {
-                toggleOverlayBtn.classList.add('text-slate-400');
-                toggleOverlayBtn.classList.remove('text-cyan-400');
-            }
-        });
-
-        const showInstructions = () => instructionsModal.classList.remove('hidden');
-        const hideInstructions = () => instructionsModal.classList.add('hidden');
-        
-        toggleInstructions.addEventListener('click', showInstructions);
-        closeInstructions.addEventListener('click', hideInstructions);
-        btnUnderstand.addEventListener('click', hideInstructions);
-
-        function switchTab(tabId) {
-            document.getElementById('btn-tab-ar').className = "flex-1 py-3 text-center font-semibold text-xs border-b-2 " + (tabId === 'tab-ar' ? "border-cyan-500 text-cyan-400" : "border-transparent text-slate-400");
-            document.getElementById('btn-tab-twin').className = "flex-1 py-3 text-center font-semibold text-xs border-b-2 " + (tabId === 'tab-twin' ? "border-cyan-500 text-cyan-400" : "border-transparent text-slate-400");
-            document.getElementById('btn-tab-coach').className = "flex-1 py-3 text-center font-semibold text-xs border-b-2 " + (tabId === 'tab-coach' ? "border-cyan-500 text-cyan-400" : "border-transparent text-slate-400");
-
-            const panelAR = document.getElementById('panel-ar');
-            const panelAside = document.getElementById('panel-aside');
-            const container3D = document.getElementById('view3d-container');
-            const containerCoach = document.getElementById('coach-container');
-
-            if (tabId === 'tab-ar') {
-                panelAR.classList.remove('hidden');
-                panelAR.classList.add('flex');
-                panelAside.classList.add('hidden');
-                panelAside.classList.remove('flex');
-            } else if (tabId === 'tab-twin') {
-                panelAR.classList.add('hidden');
-                panelAR.classList.remove('flex');
-                panelAside.classList.remove('hidden');
-                panelAside.classList.add('flex', 'flex-col');
-                container3D.classList.remove('hidden');
-                container3D.classList.add('flex');
-                containerCoach.classList.add('hidden');
-                containerCoach.classList.remove('flex');
                 
-                if (renderer3D) {
-                    const parent = document.getElementById('threeJsCanvasContainer');
-                    renderer3D.setSize(parent.clientWidth, parent.clientHeight || 250);
-                }
-            } else if (tabId === 'tab-coach') {
-                panelAR.classList.add('hidden');
-                panelAR.classList.remove('flex');
-                panelAside.classList.remove('hidden');
-                panelAside.classList.add('flex', 'flex-col');
-                container3D.classList.add('hidden');
-                container3D.classList.remove('flex');
-                containerCoach.classList.remove('hidden');
-                containerCoach.classList.add('flex');
+                videoElement.srcObject = stream;
+                
+                // Wait for video meta to load
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play();
+                    // Setup UI resolutions
+                    document.getElementById('hud-resolution').textContent = `${videoElement.videoWidth}x${videoElement.videoHeight}`;
+                    cameraLoading.classList.add('hidden');
+                    showAlert('Cámara conectada. Filtros holográficos de alineación activados.');
+                };
+            } catch (err) {
+                console.warn("Camera blocked or unavailable, launching VR hologram face mesh simulation mode: ", err);
+                cameraLoading.classList.add('hidden');
+                showAlert('Modo Holograma Simulado Activo. Capturador físico no detectado.');
+                document.getElementById('hud-resolution').textContent = "VIRTUAL-AVATAR-SIM";
+                document.getElementById('hud-coords').innerHTML = `<span class="text-amber-500">SIMULATION ACTIVE</span>`;
             }
         }
 
-        // On document fully parsed loading start
-        window.onload = function() {
-            initThreeJS();
-            setupMediaPipeFace();
-            populateCameras();
+        // --- CUSTOM ALERTS ---
+        function showAlert(msg) {
+            systemAlertText.innerText = msg;
+            systemAlert.classList.remove('hidden', 'opacity-0', 'translate-x-10');
+            systemAlert.classList.add('opacity-100', 'translate-x-0');
+            playSound('alert');
             
             setTimeout(() => {
-                showInstructions();
-            }, 600);
-        };
+                hideAlert();
+            }, 6000);
+        }
+
+        function hideAlert() {
+            systemAlert.classList.add('opacity-0', 'translate-x-10');
+            setTimeout(() => {
+                systemAlert.classList.add('hidden');
+            }, 300);
+        }
+
+        // --- FACIAL RECONSTRUCTION & RENDER ENGINE ---
+        
+        // Generates facial landmarks (eyes, forehead, cheekbones, nose bridge, jawline, mouth)
+        function initFacePoints() {
+            customFacePoints = [];
+            
+            // Layout approximate face points that can move organically
+            // Form a face mask outline (0 to 14)
+            for (let i = 0; i < 15; i++) {
+                const angle = Math.PI + (i / 14) * Math.PI;
+                customFacePoints.push({
+                    id: `contour_${i}`,
+                    baseX: 0.5 + Math.cos(angle) * 0.22,
+                    baseY: 0.5 + Math.sin(angle) * 0.28,
+                    x: 0, y: 0,
+                    targetX: 0, targetY: 0,
+                    noiseOffset: Math.random() * 100
+                });
+            }
+            
+            // Left eye (15-18)
+            customFacePoints.push({ id: 'eye_l_0', baseX: 0.40, baseY: 0.42, x: 0, y: 0 });
+            customFacePoints.push({ id: 'eye_l_1', baseX: 0.44, baseY: 0.40, x: 0, y: 0 });
+            customFacePoints.push({ id: 'eye_l_2', baseX: 0.42, baseY: 0.44, x: 0, y: 0 });
+            
+            // Right eye (19-22)
+            customFacePoints.push({ id: 'eye_r_0', baseX: 0.60, baseY: 0.42, x: 0, y: 0 });
+            customFacePoints.push({ id: 'eye_r_1', baseX: 0.56, baseY: 0.40, x: 0, y: 0 });
+            customFacePoints.push({ id: 'eye_r_2', baseX: 0.58, baseY: 0.44, x: 0, y: 0 });
+            
+            // Nose Bridge & Base (23-26)
+            customFacePoints.push({ id: 'nose_0', baseX: 0.50, baseY: 0.38, x: 0, y: 0 });
+            customFacePoints.push({ id: 'nose_1', baseX: 0.50, baseY: 0.52, x: 0, y: 0 });
+            customFacePoints.push({ id: 'nose_l', baseX: 0.46, baseY: 0.52, x: 0, y: 0 });
+            customFacePoints.push({ id: 'nose_r', baseX: 0.54, baseY: 0.52, x: 0, y: 0 });
+            
+            // Mouth contours (27-33)
+            customFacePoints.push({ id: 'mouth_l', baseX: 0.42, baseY: 0.62, x: 0, y: 0 });
+            customFacePoints.push({ id: 'mouth_r', baseX: 0.58, baseY: 0.62, x: 0, y: 0 });
+            customFacePoints.push({ id: 'mouth_top', baseX: 0.50, baseY: 0.58, x: 0, y: 0 });
+            customFacePoints.push({ id: 'mouth_bottom', baseX: 0.50, baseY: 0.66, x: 0, y: 0 });
+            customFacePoints.push({ id: 'mouth_inner_l', baseX: 0.46, baseY: 0.62, x: 0, y: 0 });
+            customFacePoints.push({ id: 'mouth_inner_r', baseX: 0.54, baseY: 0.62, x: 0, y: 0 });
+            
+            // Forehead / Crown nodes (34-37)
+            customFacePoints.push({ id: 'crown_l', baseX: 0.38, baseY: 0.24, x: 0, y: 0 });
+            customFacePoints.push({ id: 'crown_mid', baseX: 0.50, baseY: 0.22, x: 0, y: 0 });
+            customFacePoints.push({ id: 'crown_r', baseX: 0.62, baseY: 0.24, x: 0, y: 0 });
+        }
+
+        // Simulates dynamic micro-movements on landmarks representing tracking jitter/breathing
+        function updateFacePoints(width, height, time) {
+            customFacePoints.forEach(p => {
+                // Organic math models for simulated facial gestures
+                const breathe = Math.sin(time * 0.002 + (p.noiseOffset || 0)) * 0.004;
+                const jitterX = Math.cos(time * 0.005 + (p.noiseOffset || 0)) * 0.002;
+                const jitterY = Math.sin(time * 0.004 + (p.noiseOffset || 0)) * 0.002;
+                
+                // Add micro mouth movement depending on simulated scan activity
+                let expressShiftY = 0;
+                let expressShiftX = 0;
+                if (isScanning) {
+                    expressShiftY = Math.sin(time * 0.05) * 0.008; 
+                }
+
+                p.x = (p.baseX + jitterX + expressShiftX) * width;
+                p.y = (p.baseY + breathe + jitterY + expressShiftY) * height;
+            });
+        }
+
+        // Draw connections between indices
+        function drawMeshLine(ctx, idxA, idxB, color = 'rgba(0, 242, 254, 0.45)', width = 1) {
+            if (customFacePoints[idxA] && customFacePoints[idxB]) {
+                ctx.beginPath();
+                ctx.moveTo(customFacePoints[idxA].x, customFacePoints[idxA].y);
+                ctx.lineTo(customFacePoints[idxB].x, customFacePoints[idxB].y);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = width;
+                ctx.stroke();
+            }
+        }
+
+        // Main Rendering Loop
+        function renderAR(timestamp) {
+            // Resize canvas context dynamically keeping aspect-ratio bounds
+            if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+                initFacePoints(); // Re-adjust face mesh anchors to matching canvas shape
+            }
+
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Clear screen
+            ctx.clearRect(0, 0, w, h);
+
+            // 1. DRAW CAMERA STREAM (IF AVAILABLE) OR ROTATING AVATAR BACKGROUND
+            if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
+                ctx.drawImage(videoElement, 0, 0, w, h);
+            } else {
+                // Virtual cyber grid & avatar silhouette background when webcam is inactive
+                ctx.fillStyle = '#05070f';
+                ctx.fillRect(0, 0, w, h);
+                
+                // Draw cool circular retro futuristic grid
+                ctx.strokeStyle = 'rgba(0, 242, 254, 0.15)';
+                ctx.lineWidth = 1;
+                for (let i = 1; i <= 5; i++) {
+                    ctx.beginPath();
+                    ctx.arc(w / 2, h / 2, Math.min(w, h) * 0.12 * i, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                // Dynamic rotating background axes
+                ctx.beginPath();
+                ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
+                ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h);
+                ctx.stroke();
+
+                // Abstract wireframe brain-core / avatar backdrop
+                ctx.fillStyle = 'rgba(0, 242, 254, 0.03)';
+                ctx.beginPath();
+                ctx.arc(w/2, h/2, Math.min(w, h) * 0.28, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            // 2. APPLY HOLOGRAPHIC CHROME FILTERS IN REAL TIME
+            applyHolographicFilter(ctx, w, h);
+
+            // 3. COMPUTE FACIAL COORDINATES
+            updateFacePoints(w, h, timestamp);
+
+            // 4. DRAW FACE MESH WIRES
+            // Draw face contour outlines
+            ctx.strokeStyle = getFilterNeonColor();
+            ctx.lineWidth = 1.2;
+            
+            // Loop jawline
+            ctx.beginPath();
+            ctx.moveTo(customFacePoints[0].x, customFacePoints[0].y);
+            for (let i = 1; i < 15; i++) {
+                ctx.lineTo(customFacePoints[i].x, customFacePoints[i].y);
+            }
+            ctx.strokeStyle = `${getFilterNeonColor()}7a`; // Adding opacity
+            ctx.stroke();
+
+            // Link forehead / crown to jawline
+            drawMeshLine(ctx, 34, 0, `${getFilterNeonColor()}7a`);
+            drawMeshLine(ctx, 34, 35, `${getFilterNeonColor()}7a`);
+            drawMeshLine(ctx, 35, 36, `${getFilterNeonColor()}7a`);
+            drawMeshLine(ctx, 36, 14, `${getFilterNeonColor()}7a`);
+
+            // Inner connections (Biometric triangulation)
+            // Left Eye Mesh
+            drawMeshLine(ctx, 15, 16, `${getFilterNeonColor()}a8`);
+            drawMeshLine(ctx, 16, 17, `${getFilterNeonColor()}a8`);
+            drawMeshLine(ctx, 17, 15, `${getFilterNeonColor()}a8`);
+            // Target point left eye
+            drawTargetMarker(ctx, customFacePoints[15].x + 10, customFacePoints[15].y - 2, 8, timestamp);
+
+            // Right Eye Mesh
+            drawMeshLine(ctx, 18, 19, `${getFilterNeonColor()}a8`);
+            drawMeshLine(ctx, 19, 20, `${getFilterNeonColor()}a8`);
+            drawMeshLine(ctx, 20, 18, `${getFilterNeonColor()}a8`);
+            // Target point right eye
+            drawTargetMarker(ctx, customFacePoints[18].x - 10, customFacePoints[18].y - 2, 8, timestamp);
+
+            // Nose bridge wires
+            drawMeshLine(ctx, 21, 22, `${getFilterNeonColor()}60`);
+            drawMeshLine(ctx, 22, 23, `${getFilterNeonColor()}60`);
+            drawMeshLine(ctx, 22, 24, `${getFilterNeonColor()}60`);
+            drawMeshLine(ctx, 23, 24, `${getFilterNeonColor()}60`);
+
+            // Nose-mouth alignments
+            drawMeshLine(ctx, 22, 27, `${getFilterNeonColor()}33`);
+            drawMeshLine(ctx, 23, 25, `${getFilterNeonColor()}33`);
+            drawMeshLine(ctx, 24, 26, `${getFilterNeonColor()}33`);
+
+            // Mouth outline
+            drawMeshLine(ctx, 25, 27, `${getFilterNeonColor()}a0`);
+            drawMeshLine(ctx, 27, 28, `${getFilterNeonColor()}a0`);
+            drawMeshLine(ctx, 28, 26, `${getFilterNeonColor()}a0`);
+            drawMeshLine(ctx, 26, 29, `${getFilterNeonColor()}a0`);
+            drawMeshLine(ctx, 29, 25, `${getFilterNeonColor()}a0`);
+            drawMeshLine(ctx, 29, 30, `${getFilterNeonColor()}a0`);
+            drawMeshLine(ctx, 30, 27, `${getFilterNeonColor()}a0`);
+
+            // Checkbone to crown cross triangulation (Cyber armor look)
+            drawMeshLine(ctx, 3, 21, `${getFilterNeonColor()}22`);
+            drawMeshLine(ctx, 11, 24, `${getFilterNeonColor()}22`);
+            drawMeshLine(ctx, 34, 15, `${getFilterNeonColor()}33`);
+            drawMeshLine(ctx, 36, 18, `${getFilterNeonColor()}33`);
+
+            // 5. DRAW DATA LABELS AND POINTS
+            customFacePoints.forEach((p, idx) => {
+                // Determine nodes to emphasize
+                const isMajorNode = idx % 3 === 0 || p.id.startsWith('eye') || p.id.startsWith('mouth');
+                
+                if (isMajorNode) {
+                    ctx.fillStyle = getFilterNeonColor();
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, idx === 15 || idx === 18 ? 3.5 : 2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Tiny pulse ring on specific key sensors
+                    if (idx === 15 || idx === 18 || idx === 27) {
+                        ctx.strokeStyle = getFilterNeonColor();
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 4 + Math.sin(timestamp * 0.01) * 3, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                }
+            });
+
+            // 6. DRAW SEARCH/LOCK-ON CROSSHAIRS OVER THE FACE
+            const faceCenterX = (customFacePoints[21].x + customFacePoints[18].x) / 2;
+            const faceCenterY = (customFacePoints[21].y + customFacePoints[28].y) / 2;
+            
+            ctx.strokeStyle = `${getFilterNeonColor()}99`;
+            ctx.lineWidth = 1;
+            
+            // Outer bracket locks
+            const boxSize = Math.min(w, h) * 0.32;
+            ctx.strokeRect(faceCenterX - boxSize/2, faceCenterY - boxSize/2, boxSize, boxSize);
+            
+            // Clean dynamic brackets
+            const bLen = 15;
+            ctx.lineWidth = 2;
+            // Top Left corner
+            ctx.beginPath();
+            ctx.moveTo(faceCenterX - boxSize/2 - 2, faceCenterY - boxSize/2 + bLen);
+            ctx.lineTo(faceCenterX - boxSize/2 - 2, faceCenterY - boxSize/2 - 2);
+            ctx.lineTo(faceCenterX - boxSize/2 + bLen, faceCenterY - boxSize/2 - 2);
+            ctx.stroke();
+            // Top Right
+            ctx.beginPath();
+            ctx.moveTo(faceCenterX + boxSize/2 + 2, faceCenterY - boxSize/2 + bLen);
+            ctx.lineTo(faceCenterX + boxSize/2 + 2, faceCenterY - boxSize/2 - 2);
+            ctx.lineTo(faceCenterX + boxSize/2 - bLen, faceCenterY - boxSize/2 - 2);
+            ctx.stroke();
+            // Bottom Left
+            ctx.beginPath();
+            ctx.moveTo(faceCenterX - boxSize/2 - 2, faceCenterY + boxSize/2 - bLen);
+            ctx.lineTo(faceCenterX - boxSize/2 - 2, faceCenterY + boxSize/2 + 2);
+            ctx.lineTo(faceCenterX - boxSize/2 + bLen, faceCenterY + boxSize/2 + 2);
+            ctx.stroke();
+            // Bottom Right
+            ctx.beginPath();
+            ctx.moveTo(faceCenterX + boxSize/2 + 2, faceCenterY + boxSize/2 - bLen);
+            ctx.lineTo(faceCenterX + boxSize/2 + 2, faceCenterY + boxSize/2 + 2);
+            ctx.lineTo(faceCenterX + boxSize/2 - bLen, faceCenterY + boxSize/2 + 2);
+            ctx.stroke();
+
+            // Real-time HUD reading overlay text inside canvas
+            ctx.fillStyle = getFilterNeonColor();
+            ctx.font = '9px "Share Tech Mono"';
+            ctx.fillText(`SYS_SCANNER_LOCK [LOCK=TRUE]`, faceCenterX - boxSize/2, faceCenterY - boxSize/2 - 6);
+            ctx.fillText(`X: ${faceCenterX.toFixed(1)} Y: ${faceCenterY.toFixed(1)}`, faceCenterX - boxSize/2, faceCenterY + boxSize/2 + 15);
+
+            animationFrameId = requestAnimationFrame(renderAR);
+        }
+
+        // Helper to draw eye target crosshair
+        function drawTargetMarker(ctx, x, y, size, time) {
+            ctx.strokeStyle = getFilterNeonColor();
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(x - size, y); ctx.lineTo(x + size, y);
+            ctx.moveTo(x, y - size); ctx.lineTo(x, y + size);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(x, y, size/2, 0, Math.PI*2);
+            ctx.stroke();
+        }
+
+        // Apply interactive canvas visual filters manually
+        function applyHolographicFilter(ctx, w, h) {
+            if (currentFilter === 'matrix') {
+                // Green tint scan lines
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
+                ctx.fillRect(0, 0, w, h);
+                // Vertical green stream code markers
+                ctx.fillStyle = 'rgba(52, 211, 153, 0.2)';
+                ctx.font = '8px monospace';
+                for (let i = 0; i < w; i += 40) {
+                    const char = Math.random() > 0.5 ? "1" : "0";
+                    const randomY = Math.floor(Math.random() * h);
+                    ctx.fillText(char, i, randomY);
+                }
+            } 
+            else if (currentFilter === 'thermal') {
+                // High contrast purple-orange hue mapping simulation
+                ctx.fillStyle = 'rgba(236, 72, 153, 0.12)'; // Fuchsia wash
+                ctx.fillRect(0, 0, w, h);
+                // Radial center thermal bubble mapping face
+                const grad = ctx.createRadialGradient(w/2, h/2, 20, w/2, h/2, Math.min(w,h)*0.35);
+                grad.addColorStop(0, 'rgba(239, 68, 68, 0.35)'); // Red hot center
+                grad.addColorStop(0.6, 'rgba(245, 158, 11, 0.15)'); // Orange
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, w, h);
+            } 
+            else if (currentFilter === 'glitch') {
+                // Random RGB / Chromatic aberration displacement block
+                if (Math.random() > 0.85) {
+                    const sliceY = Math.floor(Math.random() * h);
+                    const sliceH = Math.floor(Math.random() * 50) + 10;
+                    const shiftX = Math.floor(Math.random() * 30) - 15;
+                    ctx.drawImage(canvas, 0, sliceY, w, sliceH, shiftX, sliceY, w, sliceH);
+                    
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+                    ctx.fillRect(0, sliceY, w, sliceH);
+                }
+            }
+        }
+
+        // Return core aesthetic color for active overlay filter
+        function getFilterNeonColor() {
+            switch (currentFilter) {
+                case 'matrix': return '#34d399'; // Emerald
+                case 'thermal': return '#f43f5e'; // Rose
+                case 'glitch': return '#fbbf24'; // Amber
+                default: return '#00f2fe'; // Tech cyan
+            }
+        }
+
+        // --- HUMOR CALCULATION & ALGORITHM ---
+        function runMoodScan() {
+            if (isScanning) return;
+            isScanning = true;
+            initAudio(); // Ensure context ready
+            playSound('laser');
+
+            // Show scanner laser visual overlay line
+            const laser = document.getElementById('scanning-laser');
+            laser.classList.remove('hidden');
+
+            // Shift results status view
+            idleResultsState.classList.add('hidden');
+            activeResultsState.classList.add('hidden');
+            scanningResultsState.classList.remove('hidden');
+            
+            document.getElementById('scan-status-badge').innerHTML = `
+                <span class="w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping"></span>
+                ESCANEO EN PROCESO
+            `;
+
+            scanProgress = 0;
+            const progressTimer = setInterval(() => {
+                scanProgress += Math.floor(Math.random() * 12) + 6;
+                if (scanProgress >= 100) {
+                    scanProgress = 100;
+                    clearInterval(progressTimer);
+                    finalizeMoodScan();
+                }
+                
+                progressBarScan.style.width = `${scanProgress}%`;
+                playSound('scanning');
+
+                // Cyberpunk text loading sequence steps
+                if (scanProgress < 25) {
+                    scanningPhaseText.innerText = "CAPTURANDO GEOMETRÍA FACIAL...";
+                } else if (scanProgress < 50) {
+                    scanningPhaseText.innerText = "CALCULANDO ÍNDICE NEURO-ÉCTRICO...";
+                } else if (scanProgress < 75) {
+                    scanningPhaseText.innerText = "EXTRAPOLANDO TERMOGRAFÍA CORONAL...";
+                } else {
+                    scanningPhaseText.innerText = "DECODIFICANDO AURA DE COLOR...";
+                }
+            }, 180);
+        }
+
+        function finalizeMoodScan() {
+            isScanning = false;
+            playSound('success');
+
+            // Select pseudo-random mood based on real-time factors
+            const selectedMoodIndex = Math.floor(Math.random() * MOODS_DATABASE.length);
+            const diagnosedMood = MOODS_DATABASE[selectedMoodIndex];
+
+            // Render Results View
+            scanningResultsState.classList.add('hidden');
+            activeResultsState.classList.remove('hidden');
+
+            // Populating UI data elements
+            moodAvatarContainer.innerText = diagnosedMood.emoji;
+            moodAvatarContainer.style.borderColor = diagnosedMood.color;
+            moodAvatarContainer.style.boxShadow = `0 0 15px ${diagnosedMood.color}40`;
+            moodTitle.innerText = diagnosedMood.title;
+            moodTitle.style.color = diagnosedMood.color;
+            moodSubtitle.innerText = diagnosedMood.subtitle;
+            moodSubtitle.style.color = `${diagnosedMood.color}d0`;
+            moodDesc.innerText = diagnosedMood.desc;
+
+            // Generate slight random variations on metrics for visual fidelity
+            const customSymmetry = (diagnosedMood.symmetry + (Math.random() * 4 - 2)).toFixed(1);
+            const customNeuro = (diagnosedMood.neuro + (Math.random() * 6 - 3)).toFixed(1);
+            const customPulse = Math.floor(diagnosedMood.pulse + (Math.random() * 8 - 4));
+
+            metricSymmetry.innerText = `${customSymmetry}%`;
+            barSymmetry.style.width = `${customSymmetry}%`;
+            barSymmetry.style.backgroundColor = diagnosedMood.color;
+
+            metricNeuro.innerText = `${customNeuro}%`;
+            barNeuro.style.width = `${customNeuro}%`;
+            barNeuro.style.backgroundColor = diagnosedMood.color;
+
+            metricPulse.innerText = `${customPulse} BPM`;
+            barPulse.style.width = `${Math.min(customPulse / 1.5, 100)}%`;
+            barPulse.style.backgroundColor = diagnosedMood.secondary;
+
+            // Update timestamp
+            const randomTimeTaken = (1.5 + Math.random() * 1.5).toFixed(3);
+            diagnoseTimeText.innerText = `${randomTimeTaken}s`;
+
+            // Add item to custom history logs
+            addToHistory(diagnosedMood);
+
+            // Hide scanner laser visual overlay
+            const laser = document.getElementById('scanning-laser');
+            laser.classList.add('hidden');
+
+            document.getElementById('scan-status-badge').innerHTML = `
+                <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+                ANÁLISIS COMPLETADO
+            `;
+
+            // Play short cyber-filter glitch transition to show diagnosis match
+            const prevFilter = currentFilter;
+            currentFilter = 'glitch';
+            setTimeout(() => {
+                currentFilter = prevFilter;
+            }, 300);
+
+            showAlert(`Diagnóstico completo: ${diagnosedMood.title}`);
+        }
+
+        // Add scan items to reactive sidebar history list
+        function addToHistory(mood) {
+            const timeNow = new Date().toLocaleTimeString();
+            const historyItem = {
+                title: mood.title,
+                emoji: mood.emoji,
+                color: mood.color,
+                time: timeNow
+            };
+
+            historyList.unshift(historyItem);
+            
+            // Limit history log length
+            if (historyList.length > 5) {
+                historyList.pop();
+            }
+
+            renderHistoryList();
+        }
+
+        function renderHistoryList() {
+            if (historyList.length === 0) {
+                historyContainer.innerHTML = `<div class="text-slate-500 text-center py-6 italic">No se han registrado diagnósticos de humor.</div>`;
+                return;
+            }
+
+            historyContainer.innerHTML = historyList.map(item => `
+                <div class="flex items-center justify-between p-2 rounded bg-slate-900/80 border-l-2 border-slate-700 hover:border-cyan-400 transition" style="border-left-color: ${item.color}">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-base">${item.emoji}</span>
+                        <div>
+                            <p class="font-cyber font-bold tracking-wide" style="color: ${item.color}">${item.title}</p>
+                            <p class="text-3xs text-slate-500">${item.time} - BIOMETRIC CORRELATION</p>
+                        </div>
+                    </div>
+                    <span class="text-slate-400 text-3xs font-cyber">OK</span>
+                </div>
+            `).join('');
+        }
+
+        // --- INTERACTION & EVENT LISTENERS ---
+        
+        // Setup initial triggers on load
+        window.addEventListener('load', () => {
+            initFacePoints();
+        });
+
+        // Start button transition
+        btnInitialize.addEventListener('click', () => {
+            initAudio();
+            playSound('click');
+            
+            // Welcome slide up transitions
+            welcomeScreen.classList.add('translate-y-[-100%]');
+            setTimeout(() => {
+                welcomeScreen.classList.add('hidden');
+                mainLayout.classList.remove('hidden');
+                
+                // Trigger camera hardware setup
+                setupCamera();
+                // Initialize rendering canvas
+                renderAR();
+            }, 500);
+        });
+
+        // Trigger manual biometric scan scan
+        btnScan.addEventListener('click', () => {
+            playSound('click');
+            runMoodScan();
+        });
+
+        // Randomize mock positions / visual glitch trigger
+        btnRandomize.addEventListener('click', () => {
+            playSound('click');
+            // Trigger temporary visual mesh glitch
+            currentFilter = 'glitch';
+            setTimeout(() => {
+                currentFilter = 'normal';
+                // Trigger reset active active filter button highlight state
+                filterButtons.forEach(btn => {
+                    btn.classList.remove('active', 'border-cyan-400/40', 'text-cyan-400');
+                    btn.classList.add('border-slate-800', 'text-slate-400');
+                    if (btn.dataset.filter === 'normal') {
+                        btn.classList.add('active', 'border-cyan-400/40', 'text-cyan-400');
+                        btn.classList.remove('border-slate-800', 'text-slate-400');
+                    }
+                });
+            }, 400);
+
+            // Reshuffle point indexes dynamically
+            customFacePoints.forEach(p => {
+                p.noiseOffset = Math.random() * 200;
+            });
+            showAlert("Sistema de retícula facial recalibrado correctamente.");
+        });
+
+        // Filter button toggles
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                playSound('click');
+                filterButtons.forEach(b => {
+                    b.classList.remove('active', 'border-cyan-400/40', 'text-cyan-400', 'border-emerald-500/50', 'text-emerald-400', 'border-purple-500/50', 'text-purple-400', 'border-amber-500/50', 'text-amber-400');
+                    b.classList.add('border-slate-800', 'text-slate-400');
+                });
+
+                currentFilter = btn.dataset.filter;
+                btn.classList.remove('border-slate-800', 'text-slate-400');
+                
+                // Color customization for matching selected active filter border themes
+                if (currentFilter === 'normal') {
+                    btn.classList.add('active', 'border-cyan-400/40', 'text-cyan-400');
+                } else if (currentFilter === 'matrix') {
+                    btn.classList.add('active', 'border-emerald-500/50', 'text-emerald-400');
+                } else if (currentFilter === 'thermal') {
+                    btn.classList.add('active', 'border-purple-500/50', 'text-purple-400');
+                } else if (currentFilter === 'glitch') {
+                    btn.classList.add('active', 'border-amber-500/50', 'text-amber-400');
+                }
+            });
+        });
+
+        // Audio controls
+        btnAudioToggle.addEventListener('click', () => {
+            isAudioMuted = !isAudioMuted;
+            if (isAudioMuted) {
+                audioIcon.innerText = "🔇";
+                btnAudioToggle.classList.add('border-rose-950', 'text-rose-400');
+                btnAudioToggle.classList.remove('text-slate-400');
+                btnAudioToggle.querySelector('span:last-child').innerText = "AUDIO MUTADO";
+            } else {
+                initAudio();
+                audioIcon.innerText = "🔊";
+                btnAudioToggle.classList.remove('border-rose-950', 'text-rose-400');
+                btnAudioToggle.classList.add('text-slate-400');
+                btnAudioToggle.querySelector('span:last-child').innerText = "AUDIO ACTIVO";
+                playSound('click');
+            }
+        });
+
+        // Clear scanning history logs
+        btnClearHistory.addEventListener('click', () => {
+            playSound('click');
+            historyList = [];
+            renderHistoryList();
+            showAlert("Historial de bio-espectro eliminado.");
+        });
+
+        // Manual point tracker interactivity (Dragging or tapping coordinates on Canvas to simulate active point recalibration)
+        canvas.addEventListener('click', (e) => {
+            if (isScanning) return;
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            // Find closest custom face node to snap
+            let closestNode = null;
+            let minDist = 35; // Maximum pixel snap distance
+            
+            customFacePoints.forEach(p => {
+                const dist = Math.hypot(p.x - clickX, p.y - clickY);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestNode = p;
+                }
+            });
+
+            if (closestNode) {
+                playSound('scanning');
+                // Simulate focus nudge on the tapped node
+                closestNode.baseX = clickX / canvas.width;
+                closestNode.baseY = clickY / canvas.height;
+                showAlert(`Nodo recalibrado: [${closestNode.id}]`);
+            } else {
+                // Clicked outside elements, paint a short holographic crosshair focus ripple effect
+                playSound('click');
+            }
+        });
+
     </script>
 </body>
 </html>
