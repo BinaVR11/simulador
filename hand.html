@@ -38,12 +38,11 @@
         }
         /* Ocultar el video nativo, se procesa en segundo plano */
         #webcam {
-            transform: scaleX(-1);
             display: none;
         }
-        /* El canvas se voltea horizontalmente para actuar como espejo natural */
+        /* El canvas ajustará su espejo dinámicamente mediante JS */
         #ar-canvas {
-            transform: scaleX(-1);
+            transition: transform 0.4s ease-in-out;
         }
     </style>
 </head>
@@ -90,6 +89,12 @@
                 <!-- Canvas de renderizado principal AR -->
                 <canvas id="ar-canvas" class="absolute top-0 left-0 w-full h-full object-cover z-10"></canvas>
                 
+                <!-- Botón flotante para cambiar de cámara (Soporte PC, móvil y Tablet) -->
+                <button id="btn-switch-cam" class="absolute top-4 right-4 z-30 glass-panel border-gray-700 hover:border-emerald-500 text-gray-300 hover:text-emerald-400 p-3 rounded-xl transition-all duration-300 shadow-lg flex items-center gap-2 text-xs font-semibold">
+                    <i class="fa-solid fa-camera-rotate text-base animate-pulse"></i>
+                    <span>Rotar Cámara</span>
+                </button>
+
                 <!-- Onboarding y Pantalla de Carga interactiva -->
                 <div id="onboarding-screen" class="absolute inset-0 bg-gray-950/90 z-20 flex flex-col items-center justify-center p-6 text-center transition-all duration-500">
                     <div class="max-w-md space-y-6">
@@ -226,6 +231,7 @@
         
         const onboardingScreen = document.getElementById('onboarding-screen');
         const btnStart = document.getElementById('btn-start');
+        const btnSwitchCam = document.getElementById('btn-switch-cam');
         const statusBadge = document.getElementById('status-badge');
         const fpsCounter = document.getElementById('fps-counter');
         const consoleLogs = document.getElementById('console-logs');
@@ -255,6 +261,10 @@
         let fps = 0;
         let gestureStates = { Left: '', Right: '' };
         let audioCtx = null;
+        
+        // Control de hardware de cámara
+        let currentFacingMode = 'user'; // 'user' (frontal/PC) o 'environment' (trasera)
+        let activeStream = null;
 
         // Inicialización y trigger de efectos de audio analógico holográficos
         function initAudio() {
@@ -386,12 +396,19 @@
             }
         }
 
-        // Inicializar la cámara de video pidiendo permisos adecuados para celulares
+        // Inicializar la cámara de video pidiendo permisos adecuados para celulares o PC
         async function setupCamera() {
-            addLog("Pidiendo acceso a la cámara...");
+            const camLabel = currentFacingMode === 'user' ? 'Frontal / PC' : 'Trasera / Entorno';
+            addLog(`Pidiendo acceso a cámara (${camLabel})...`);
+
+            // Apagar cualquier rastro del stream anterior para liberar la cámara limpiamente
+            if (activeStream) {
+                activeStream.getTracks().forEach(track => track.stop());
+            }
+
             const constraints = {
                 video: {
-                    facingMode: 'user', // Cámara frontal
+                    facingMode: currentFacingMode,
                     width: { ideal: 640 },
                     height: { ideal: 480 }
                 },
@@ -400,16 +417,56 @@
 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                activeStream = stream;
                 video.srcObject = stream;
+                
+                // Ajustar espejo: las cámaras frontales necesitan invertirse, las traseras no
+                if (currentFacingMode === 'user') {
+                    canvas.style.transform = 'scaleX(-1)';
+                    video.style.transform = 'scaleX(-1)';
+                    addLog("Efecto espejo habilitado (Cámara de autorretrato).");
+                } else {
+                    canvas.style.transform = 'none';
+                    video.style.transform = 'none';
+                    addLog("Efecto espejo deshabilitado (Cámara de entorno).");
+                }
+
                 return new Promise((resolve) => {
                     video.onloadedmetadata = () => {
                         resolve(video);
                     };
                 });
             } catch (err) {
-                addLog("Error accediendo a la cámara. Revisa permisos.", "text-red-500");
+                addLog("Error accediendo a la cámara seleccionada.", "text-red-500");
                 showNotification("ERROR DE CÁMARA", "rgba(239, 68, 68, 0.8)");
                 throw err;
+            }
+        }
+
+        // Función para alternar dinámicamente entre cámara frontal y trasera
+        async function switchCamera() {
+            if (!modelLoaded) return;
+            
+            playSynthBeep(700, 'sine', 0.1);
+            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+            
+            const targetCamLabel = currentFacingMode === 'user' ? 'FRONTAL / PC' : 'TRASERA';
+            statusBadge.innerText = "CAMBIANDO CÁMARA...";
+            
+            try {
+                await setupCamera();
+                if (isPlaying) {
+                    video.play();
+                }
+                statusBadge.innerText = "SISTEMA LISTO";
+                showNotification(`CÁMARA: ${targetCamLabel}`, '#10B981');
+            } catch (err) {
+                // Si la cámara seleccionada falla (ej. PC que no tiene trasera), revertimos la selección
+                currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+                addLog("Dispositivo no disponible. Reestableciendo cámara previa.", "text-amber-500");
+                await setupCamera();
+                if (isPlaying) video.play();
+                statusBadge.innerText = "SISTEMA LISTO";
             }
         }
 
@@ -713,9 +770,13 @@
         // Setup de la inicialización de la app al cargar el documento
         window.addEventListener('load', async () => {
             setupUIControls();
+            
+            // Asignar evento click al botón de rotación de cámara
+            btnSwitchCam.addEventListener('click', switchCamera);
+            
             try {
                 await setupCamera();
-                addLog("Cámara web lista y transmitiendo.", "text-emerald-400");
+                addLog("Cámara lista y transmitiendo.", "text-emerald-400");
                 await loadHandPoseDetector();
             } catch (e) {
                 addLog("El sistema falló al cargar recursos de cámara.", "text-red-500");
