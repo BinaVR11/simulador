@@ -1,1298 +1,1043 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="h-full">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AuraScan AR - Escáner Holográfico de Rostro y Humor</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts for Cyberpunk Aesthetic -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Traductor de Expresiones AR - HUD de Visión Artificial</title>
     
-    <style>
-        .font-cyber {
-            font-family: 'Orbitron', sans-serif;
+    <!-- Tailwind CSS para el diseño futurista de la interfaz -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            bg: '#0b0f19',
+                            dark: '#111827',
+                            panel: 'rgba(30, 41, 59, 0.7)',
+                            cyan: '#00FFFF',
+                            blue: '#00BFFF',
+                            magenta: '#FF00FF',
+                            accent: '#10B981'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['Share Tech Mono', 'monospace', 'Courier New']
+                    }
+                }
+            }
         }
-        .font-mono-sci {
+    </script>
+
+    <!-- Fuentes futuristas de Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Librerías de Terceros vía CDN con protección de integridad -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" crossorigin="anonymous"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19;
+            overflow: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .font-hud {
             font-family: 'Share Tech Mono', monospace;
         }
-        .font-sans-clean {
-            font-family: 'Inter', sans-serif;
+        /* Estilización de barras de scroll HUD */
+        ::-webkit-scrollbar {
+            width: 4px;
         }
-        /* Custom Glowing & Scanline Animations */
+        ::-webkit-scrollbar-track {
+            background: rgba(17, 24, 39, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #00FFFF;
+            border-radius: 2px;
+        }
+        /* Animaciones Cyberpunk de fondo */
         @keyframes scanline {
             0% { transform: translateY(-100%); }
             100% { transform: translateY(100%); }
         }
-        @keyframes laser-glow {
-            0%, 100% { opacity: 0.7; filter: drop-shadow(0 0 4px currentColor); }
-            50% { opacity: 1; filter: drop-shadow(0 0 15px currentColor); }
-        }
-        .animate-scanline {
-            animation: scanline 4s linear infinite;
-        }
-        .laser-pulse {
-            animation: laser-glow 2s infinite ease-in-out;
-        }
-        /* Glassmorphism panel styling */
-        .cyber-glass {
-            background: rgba(8, 15, 30, 0.75);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(0, 242, 254, 0.2);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
-        }
-        .cyber-border-neon {
-            border: 1px solid currentColor;
-            box-shadow: 0 0 10px rgba(currentColor, 0.3);
-        }
-        /* Scrollbar aesthetics */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.6);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #00f2fe;
-            border-radius: 3px;
-        }
-        /* Custom CRT & Noise Overlays */
-        .crt-overlay::after {
-            content: " ";
-            display: block;
+        .scanline::after {
+            content: '';
             position: absolute;
-            top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 10;
-            background-size: 100% 4px, 6px 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(0, 255, 255, 0), rgba(0, 255, 255, 0.1) 10%, rgba(0, 255, 255, 0));
+            animation: scanline 6s linear infinite;
             pointer-events: none;
+        }
+        .neon-glow-cyan {
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+            border: 1px solid rgba(0, 255, 255, 0.6);
+        }
+        .neon-text-cyan {
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
+        }
+        /* Estilos de cámara de realidad aumentada */
+        #webcam-container {
+            transform: scaleX(-1); /* Espejado para interacción natural */
         }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans-clean min-h-screen overflow-x-hidden selection:bg-cyan-500 selection:text-black">
-    
-    <!-- SYSTEM ALERTS BOX (Replaces alert()) -->
-    <div id="system-alert" class="hidden fixed top-6 right-6 z-50 max-w-sm cyber-glass border-l-4 border-cyan-400 p-4 rounded shadow-2xl transition-all duration-300 transform translate-x-10 opacity-0">
-        <div class="flex items-start space-x-3">
-            <div class="flex-shrink-0 text-cyan-400">
-                <svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            </div>
-            <div>
-                <h4 class="font-cyber text-xs tracking-widest text-cyan-400 uppercase">Notificación del Sistema</h4>
-                <p id="system-alert-text" class="text-xs text-slate-300 mt-1 font-mono-sci">Inicializando parámetros...</p>
-            </div>
-            <button onclick="hideAlert()" class="text-slate-400 hover:text-white font-bold">&times;</button>
-        </div>
-    </div>
+<body class="h-full w-full relative select-none">
 
-    <!-- TERMINAL SCREEN / INTRO INTERFACE -->
-    <div id="welcome-screen" class="fixed inset-0 z-40 bg-slate-950 flex flex-col items-center justify-center p-6 transition-all duration-700">
-        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,100,120,0.15),transparent_70%)]"></div>
-        
-        <div class="max-w-xl w-full cyber-glass border border-cyan-500/30 p-8 rounded-xl text-center relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-cyan-400"></div>
-            <div class="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-cyan-400"></div>
-            <div class="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-cyan-400"></div>
-            <div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-cyan-400"></div>
-            
-            <h1 class="font-cyber text-2xl md:text-4xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-fuchsia-400 mb-2">
-                AURASCAN AR
+    <div id="landing-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-between p-6 bg-cyber-bg scanline">
+        <div class="w-full max-w-md flex flex-col items-center text-center mt-12">
+            <!-- Logotipo Cyberpunk -->
+            <div class="relative mb-6">
+                <div class="w-24 h-24 rounded-full border-2 border-cyber-cyan flex items-center justify-center neon-glow-cyan animate-pulse">
+                    <span class="text-4xl text-cyber-cyan font-hud">AR</span>
+                </div>
+                <div class="absolute -bottom-2 bg-cyber-cyan text-cyber-bg font-hud font-bold px-2 py-0.5 text-xs rounded uppercase tracking-widest">
+                    v1.0.4
+                </div>
+            </div>
+
+            <h1 class="text-3xl font-extrabold text-white tracking-wider font-hud uppercase">
+                Visión Artificial <span class="text-cyber-cyan block">Traductor Facial</span>
             </h1>
-            <p class="font-mono-sci text-xs md:text-sm text-cyan-400 tracking-widest mb-6">SISTEMA INTEGRADO DE DIAGNÓSTICO BIOMÉTRICO v3.14</p>
-            
-            <div class="space-y-4 mb-8 text-left text-xs md:text-sm text-slate-300 border-y border-slate-800 py-6 font-mono-sci">
-                <div class="flex justify-between items-center"><span class="text-slate-500">&gt; NUCLEO NEURAL:</span><span class="text-emerald-400">ACTIVO</span></div>
-                <div class="flex justify-between items-center"><span class="text-slate-500">&gt; ALINEACION DE MALLA:</span><span class="text-cyan-400">HOLOGRAFÍA AR</span></div>
-                <div class="flex justify-between items-center"><span class="text-slate-500">&gt; ESTADO DEL ESCÁNER:</span><span class="text-amber-400">PULSOS DINÁMICOS</span></div>
-                <p class="text-slate-400 leading-relaxed mt-4 font-sans-clean text-xs">
-                    Esta aplicación requiere acceso a tu cámara web para proyectar la máscara holográfica AR y analizar tus rasgos en tiempo real. No almacenamos tus datos biométricos.
-                </p>
+            <p class="text-slate-400 text-sm mt-3 px-4 max-w-sm">
+                Analizador biométrico en tiempo real. Utiliza WebAR para mapear expresiones micro-faciales, proyectar interfaces cibernéticas y sincronizar un avatar flotante.
+            </p>
+        </div>
+
+        <!-- Panel de Requisitos e Instrucciones -->
+        <div class="w-full max-w-md bg-cyber-panel backdrop-blur-md rounded-xl p-5 border border-slate-700/60 font-hud text-xs text-slate-300 space-y-3">
+            <div class="flex items-center space-x-2 text-cyber-cyan font-bold uppercase border-b border-slate-700 pb-2">
+                <span>[ PROTOCOLOS DE ACCESO ]</span>
             </div>
-            
-            <button id="btn-initialize" class="w-full py-4 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-slate-950 font-cyber font-extrabold tracking-widest rounded-lg shadow-lg shadow-cyan-500/20 transform hover:-translate-y-0.5 transition active:translate-y-0">
-                INICIALIZAR MÓDULO AR
+            <div class="flex items-start space-x-2">
+                <span class="text-cyber-cyan">❯</span>
+                <p>Se requiere acceso a la cámara frontal para el Face Tracking interactivo.</p>
+            </div>
+            <div class="flex items-start space-x-2">
+                <span class="text-cyber-cyan">❯</span>
+                <p>El procesamiento de redes neuronales se realiza localmente y protege tu privacidad.</p>
+            </div>
+            <div class="flex items-start space-x-2">
+                <span class="text-cyber-cyan">❯</span>
+                <p>Sintetizador de audio interactivo integrado. Sube el volumen de tu dispositivo.</p>
+            </div>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="w-full max-w-md mb-12 flex flex-col items-center">
+            <button id="btn-start" class="w-full bg-gradient-to-r from-cyber-cyan to-cyber-blue text-cyber-bg font-hud font-extrabold text-lg py-4 px-8 rounded-lg shadow-lg transform active:scale-95 transition-all duration-200 tracking-wider uppercase neon-glow-cyan">
+                Iniciar Cámara e IA
             </button>
+            <p class="text-slate-500 text-[10px] mt-3 uppercase tracking-wider text-center">
+                Compatible con Safari (iOS), Chrome y Edge (Android)
+            </p>
         </div>
     </div>
 
-    <!-- MAIN APP LAYOUT -->
-    <main class="hidden flex flex-col min-h-screen relative pb-12">
-        <!-- HEADER -->
-        <header class="w-full border-b border-slate-900 bg-slate-950/80 backdrop-blur-md py-4 px-6 flex flex-col md:flex-row justify-between items-center gap-4 z-20">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-lg bg-gradient-to-tr from-cyan-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                    <svg class="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                </div>
-                <div>
-                    <h2 class="font-cyber text-lg tracking-wide bg-gradient-to-r from-cyan-400 to-teal-300 bg-clip-text text-transparent font-bold">AURASCAN AR</h2>
-                    <p class="font-mono-sci text-2xs text-cyan-500/70 tracking-widest leading-none">ANALIZADOR DE RITMOS BIOÉCTRICOS</p>
-                </div>
+    <div id="loading-screen" class="hidden absolute inset-0 z-40 flex flex-col items-center justify-center bg-cyber-bg p-6">
+        <div class="relative w-36 h-36 flex items-center justify-center">
+            <!-- Anillos rotatorios futuristas -->
+            <div class="absolute w-full h-full rounded-full border-4 border-slate-800 border-t-cyber-cyan animate-spin"></div>
+            <div class="absolute w-4/5 h-4/5 rounded-full border-4 border-slate-800 border-b-cyber-magenta animate-spin" style="animation-direction: reverse; animation-duration: 2s;"></div>
+            <span class="text-cyber-cyan font-hud text-lg font-bold tracking-widest animate-pulse" id="loading-percent">0%</span>
+        </div>
+        <div class="mt-8 text-center max-w-sm">
+            <h2 id="loading-status" class="text-cyber-cyan font-hud text-sm font-bold uppercase tracking-widest">Iniciando módulos...</h2>
+            <div class="w-64 bg-slate-800 h-1 rounded-full mt-3 overflow-hidden mx-auto">
+                <div id="loading-bar" class="h-full bg-cyber-cyan transition-all duration-300" style="width: 0%"></div>
             </div>
+            <p id="loading-log" class="text-slate-500 font-hud text-[10px] mt-2 h-4 overflow-hidden truncate uppercase"></p>
+        </div>
+    </div>
 
-            <!-- Global Scanner Stats (Top Bar) -->
-            <div class="flex items-center space-x-6 font-mono-sci text-xs">
-                <div class="hidden sm:block">
-                    <span class="text-slate-500">PING DE ENLACE:</span>
-                    <span class="text-emerald-400 ml-1" id="network-ping">12ms</span>
+    <main id="app-container" class="hidden h-full w-full relative">
+
+        <!-- Contenedores de Video y Renderizado WebGL (Apilados) -->
+        <div class="absolute inset-0 z-0 overflow-hidden bg-black">
+            <!-- Cámara Web oculta/espejada -->
+            <video id="webcam" class="absolute object-cover w-full h-full hidden" autoplay playsinline muted></video>
+            <!-- Canvas de Procesamiento de MediaPipe y Render 3D de Three.js -->
+            <canvas id="ar-canvas" class="absolute top-0 left-0 w-full h-full object-cover"></canvas>
+        </div>
+
+        <!-- HUD: Capa de Interfaz y Paneles Semitransparentes -->
+        <div class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
+
+            <!-- HUD Header: Información de Red y Rendimiento -->
+            <header class="w-full flex justify-between items-center pointer-events-auto">
+                <div class="bg-cyber-panel backdrop-blur-md border border-slate-700/50 rounded-lg px-4 py-2 flex items-center space-x-3 text-white font-hud text-xs">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-cyber-cyan animate-ping"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-cyber-cyan absolute"></span>
+                        <span class="font-bold text-cyber-cyan">SECURE LINK</span>
+                    </div>
+                    <span class="text-slate-500">|</span>
+                    <div>FPS: <span id="hud-fps" class="text-cyber-accent">--</span></div>
+                    <span class="text-slate-500">|</span>
+                    <button id="btn-toggle-mesh" class="text-cyber-cyan bg-slate-800 hover:bg-slate-700 px-2 py-0.5 rounded transition">
+                        WIRE MASK: ON
+                    </button>
                 </div>
-                <div class="hidden sm:block">
-                    <span class="text-slate-500">RETÍCULA AR:</span>
-                    <span class="text-cyan-400 ml-1">VECTOR-MATRIX v2</span>
+
+                <div class="bg-cyber-panel backdrop-blur-md border border-slate-700/50 rounded-lg px-3 py-2 text-white font-hud text-xs flex space-x-2">
+                    <span class="text-slate-400">CORE STATUS:</span>
+                    <span class="text-cyber-accent uppercase animate-pulse" id="core-state">ONLINE</span>
                 </div>
-                <button id="btn-audio-toggle" class="px-3 py-1.5 rounded border border-slate-800 text-slate-400 hover:text-cyan-400 transition flex items-center gap-1.5">
-                    <span id="audio-icon">🔊</span>
-                    <span class="text-2xs font-cyber tracking-widest uppercase">AUDIO ACTIVO</span>
-                </button>
-            </div>
-        </header>
+            </header>
 
-        <!-- DASHBOARD CONTAINER -->
-        <div class="flex-grow max-w-7xl w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-            
-            <!-- COLUMN LEFT: CAMERA VIEWPORT & INTERACTION (7 Cols) -->
-            <section class="lg:col-span-7 flex flex-col space-y-4">
-                
-                <!-- CAMERA FRAME & CANVAS AR OVERLAY -->
-                <div class="relative w-full aspect-[4/3] sm:aspect-video md:aspect-[4/3] lg:aspect-video rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-2xl flex items-center justify-center crt-overlay">
-                    
-                    <!-- Neon Frame Corners -->
-                    <div class="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-cyan-400 z-20 pointer-events-none"></div>
-                    <div class="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-cyan-400 z-20 pointer-events-none"></div>
-                    <div class="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-cyan-400 z-20 pointer-events-none"></div>
-                    <div class="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-cyan-400 z-20 pointer-events-none"></div>
-
-                    <!-- Scan laser animation line -->
-                    <div id="scanning-laser" class="hidden absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent z-10 animate-scanline pointer-events-none"></div>
-
-                    <!-- Raw Video (Hidden from plain view, rendered onto canvas for AR overlays) -->
-                    <video id="webcam" class="hidden" autoplay playsinline muted></video>
-
-                    <!-- Main Interactive Canvas -->
-                    <canvas id="ar-canvas" class="w-full h-full object-cover z-0 cursor-crosshair"></canvas>
-
-                    <!-- Virtual Face Mesh Guide (Static fallback if webcam not allowed or during calibration) -->
-                    <div id="camera-loading" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 z-20 text-center p-6 space-y-4 transition-all">
-                        <div class="relative w-20 h-20">
-                            <div class="absolute inset-0 rounded-full border-4 border-slate-800"></div>
-                            <div class="absolute inset-0 rounded-full border-4 border-cyan-400 border-t-transparent animate-spin"></div>
-                            <span class="absolute inset-0 flex items-center justify-center font-cyber text-2xs text-cyan-400">AR</span>
+            <!-- HUD de Telemetría Izquierda (Parámetros Faciales Crudos) -->
+            <section class="hidden md:flex flex-col space-y-2 max-w-[240px] pointer-events-auto self-start">
+                <div class="bg-cyber-panel backdrop-blur-md border border-slate-700/50 rounded-xl p-4 font-hud text-xs text-white">
+                    <h3 class="text-cyber-cyan font-bold uppercase mb-3 border-b border-slate-700 pb-1 flex justify-between">
+                        <span>Biometría Cruda</span>
+                        <span class="text-slate-400 animate-pulse">●</span>
+                    </h3>
+                    <div class="space-y-2" id="telemetry-values">
+                        <div>
+                            <div class="flex justify-between text-[10px] text-slate-400">
+                                <span>SONRISA (SMILE)</span>
+                                <span id="tel-smile-pct">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-1 rounded overflow-hidden">
+                                <div id="tel-smile-bar" class="h-full bg-cyber-cyan" style="width: 0%"></div>
+                            </div>
                         </div>
                         <div>
-                            <p class="font-cyber text-sm tracking-widest text-slate-100">INICIALIZANDO LENTE DE CAPTURA</p>
-                            <p class="font-mono-sci text-xs text-cyan-500 mt-1">Obteniendo coordenadas faciales...</p>
+                            <div class="flex justify-between text-[10px] text-slate-400">
+                                <span>APERTURA BOCA (JAW)</span>
+                                <span id="tel-jaw-pct">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-1 rounded overflow-hidden">
+                                <div id="tel-jaw-bar" class="h-full bg-cyber-blue" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[10px] text-slate-400">
+                                <span>FRUNCIDO (FROWN)</span>
+                                <span id="tel-frown-pct">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-1 rounded overflow-hidden">
+                                <div id="tel-frown-bar" class="h-full bg-cyber-magenta" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[10px] text-slate-400">
+                                <span>ELEVACIÓN CEJAS</span>
+                                <span id="tel-brow-pct">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-1 rounded overflow-hidden">
+                                <div id="tel-brow-bar" class="h-full bg-cyber-accent" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="pt-2 text-[9px] text-slate-500 border-t border-slate-800 mt-2">
+                            YAW: <span id="tel-yaw">0°</span> | PITCH: <span id="tel-pitch">0°</span>
                         </div>
                     </div>
-
-                    <!-- HUD Overlays (Absolute UI Inside Stream) -->
-                    <div class="absolute bottom-4 left-4 z-20 font-mono-sci text-3xs text-cyan-400/80 space-y-1 select-none hidden sm:block">
-                        <div>&gt; RESOLUTION: <span id="hud-resolution">1280x720</span></div>
-                        <div>&gt; FACIAL COORDS: <span id="hud-coords">TRACKING ACTIVE</span></div>
-                        <div>&gt; NOISE STABILIZER: ON [98.4%]</div>
-                    </div>
-                    
-                    <div class="absolute bottom-4 right-4 z-20 select-none">
-                        <span id="scan-status-badge" class="px-2.5 py-1 rounded bg-cyan-950/80 border border-cyan-400 text-cyan-300 font-cyber text-3xs tracking-widest flex items-center gap-1.5">
-                            <span class="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-ping"></span>
-                            SISTEMA LISTO
-                        </span>
-                    </div>
-
-                    <div class="absolute top-4 left-4 z-20 font-mono-sci text-xs select-none">
-                        <div class="px-2 py-1 bg-slate-950/80 border border-slate-800 rounded flex items-center gap-1.5 text-slate-300">
-                            <span class="text-rose-500 animate-pulse">●</span> REC FEED
-                        </div>
-                    </div>
                 </div>
-
-                <!-- CONTROLS & CALIBRATION INTERFACE -->
-                <div class="cyber-glass p-4 rounded-xl flex flex-col md:flex-row gap-4 items-center justify-between relative overflow-hidden">
-                    <div class="text-center md:text-left">
-                        <h3 class="font-cyber text-xs tracking-wider text-slate-300">MODO ESCÁNER DE ENERGÍA</h3>
-                        <p class="text-xs text-slate-400 mt-1 font-sans-clean leading-snug">Mantén tu rostro centrado dentro del visor AR y presiona Iniciar Escaneo.</p>
-                    </div>
-
-                    <div class="flex flex-wrap gap-2 w-full md:w-auto justify-center">
-                        <button id="btn-scan" class="flex-grow md:flex-grow-0 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-cyber font-bold text-xs tracking-widest rounded-lg hover:brightness-110 active:scale-95 transition flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/10">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h2M4 8h16"></path></svg>
-                            INICIAR ESCANEO
-                        </button>
-                        
-                        <button id="btn-randomize" class="px-4 py-3 border border-slate-800 hover:border-cyan-500/50 hover:bg-cyan-500/10 text-slate-300 font-cyber text-2xs tracking-wider rounded-lg transition" title="Cambiar filtro facial">
-                            REFRESCAR MALLA
-                        </button>
-                    </div>
-                </div>
-
-                <!-- CHOOSE MESH COVERS & FILTERS -->
-                <div class="cyber-glass p-4 rounded-xl">
-                    <h4 class="font-cyber text-2xs tracking-widest text-slate-400 mb-3">FILTROS HOLOGRÁFICOS DE REALIDAD AUMENTADA</h4>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <button class="filter-btn px-3 py-2 rounded bg-slate-900 border border-cyan-400/40 text-cyan-400 font-mono-sci text-xs hover:bg-cyan-950/20 transition active" data-filter="normal">
-                            NORMAL
-                        </button>
-                        <button class="filter-btn px-3 py-2 rounded bg-slate-900 border border-slate-800 text-slate-400 font-mono-sci text-xs hover:border-emerald-500/50 hover:text-emerald-400 transition" data-filter="matrix">
-                            MATRIX HACK
-                        </button>
-                        <button class="filter-btn px-3 py-2 rounded bg-slate-900 border border-slate-800 text-slate-400 font-mono-sci text-xs hover:border-purple-500/50 hover:text-purple-400 transition" data-filter="thermal">
-                            TERMOGRÁFICO
-                        </button>
-                        <button class="filter-btn px-3 py-2 rounded bg-slate-900 border border-slate-800 text-slate-400 font-mono-sci text-xs hover:border-amber-500/50 hover:text-amber-400 transition" data-filter="glitch">
-                            GLITCH VIRTUAL
-                        </button>
-                    </div>
-                </div>
-
             </section>
 
-            <!-- COLUMN RIGHT: BIOMETRIC RESULTS & STATISTICS (5 Cols) -->
-            <section class="lg:col-span-5 flex flex-col space-y-4">
+            <!-- HUD de Análisis Emocional Flotante (Principal en Móviles y Escritorio) -->
+            <footer class="w-full max-w-md mx-auto pointer-events-auto flex flex-col space-y-4">
                 
-                <!-- DIAGNOSTICS & NEURAL ANALYSIS PANEL -->
-                <div class="cyber-glass p-6 rounded-xl flex-grow flex flex-col justify-between relative overflow-hidden">
-                    <div class="absolute top-0 right-0 w-16 h-16 pointer-events-none overflow-hidden">
-                        <div class="absolute top-0 right-0 w-32 h-32 border-b border-l border-slate-800 rotate-45 transform translate-x-12 -translate-y-12"></div>
-                    </div>
-
-                    <!-- Title -->
-                    <div class="border-b border-slate-900 pb-4 mb-4">
-                        <h3 class="font-cyber text-sm tracking-widest text-cyan-400 flex items-center gap-2">
-                            <span class="inline-block w-2.5 h-2.5 bg-cyan-400 animate-pulse rounded-sm"></span>
-                            ANÁLISIS NEURAL BIOMÉTRICO
-                        </h3>
-                        <p class="font-mono-sci text-2xs text-slate-500 tracking-wider">MÉTRICAS ESTIMADAS BASADAS EN FLUJO DÉRMICO Y ASIMETRÍA</p>
-                    </div>
-
-                    <!-- Scanning / Result Screen -->
-                    <div class="flex-grow flex flex-col justify-center py-4" id="results-container">
-                        <!-- Idle state -->
-                        <div id="idle-results-state" class="text-center py-8 space-y-4">
-                            <div class="text-6xl animate-bounce">🔬</div>
-                            <div class="space-y-1">
-                                <p class="font-cyber text-xs tracking-widest text-slate-300">DISPOSITIVO ADAPTADO Y LISTO</p>
-                                <p class="font-mono-sci text-2xs text-slate-500">Esperando captura facial activa para generar lectura del humor</p>
-                            </div>
-                        </div>
-
-                        <!-- Scan In Progress Animation -->
-                        <div id="scanning-results-state" class="hidden text-center py-6 space-y-6">
-                            <div class="relative w-24 h-24 mx-auto">
-                                <div class="absolute inset-0 border-2 border-dashed border-cyan-400 rounded-full animate-spin"></div>
-                                <div class="absolute inset-4 border border-fuchsia-500 rounded-full animate-pulse flex items-center justify-center">
-                                    <span class="font-cyber text-xs text-fuchsia-400">X-RAY</span>
-                                </div>
-                            </div>
-                            <div class="space-y-2">
-                                <p class="font-cyber text-xs tracking-wider text-cyan-400 uppercase animate-pulse">Desencriptando Rasgos Expresivos...</p>
-                                <div class="w-full bg-slate-900 h-1.5 rounded overflow-hidden max-w-xs mx-auto">
-                                    <div id="progress-bar-scan" class="h-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 w-0 transition-all duration-300"></div>
-                                </div>
-                                <p id="scanning-phase-text" class="font-mono-sci text-3xs text-slate-500 tracking-widest">MAPEO TERMÓGENO...</p>
-                            </div>
-                        </div>
-
-                        <!-- Active diagnosed Mood State -->
-                        <div id="active-results-state" class="hidden space-y-6">
-                            <!-- Diagnostic Circle Header -->
-                            <div class="flex items-center space-x-4">
-                                <div id="mood-avatar-container" class="w-16 h-16 rounded-full flex items-center justify-center text-3xl shadow-lg border-2">
-                                    😊
-                                </div>
-                                <div>
-                                    <span class="font-mono-sci text-3xs tracking-widest text-slate-500">DIAGNÓSTICO FINAL</span>
-                                    <h4 id="mood-title" class="font-cyber text-lg tracking-wide uppercase text-cyan-400">Eufórico</h4>
-                                    <p id="mood-subtitle" class="font-mono-sci text-2xs text-cyan-400/80">ALTA FRECUENCIA VIBRATORIA</p>
-                                </div>
-                            </div>
-
-                            <!-- Description -->
-                            <div class="p-4 rounded-lg bg-slate-900/60 border border-slate-800/80">
-                                <p id="mood-desc" class="text-xs text-slate-300 leading-relaxed font-sans-clean">
-                                    Se detectan micro-contracciones asimétricas cerca de los ojos y un flujo térmico ascendente consistente con altos índices de dopamina.
-                                </p>
-                            </div>
-
-                            <!-- Diagnostic Metrics Graphs -->
-                            <div class="space-y-3 font-mono-sci text-2xs">
-                                <div>
-                                    <div class="flex justify-between text-slate-400 mb-1">
-                                        <span>SIMETRÍA EXPRESIVA</span>
-                                        <span id="metric-symmetry">92.4%</span>
-                                    </div>
-                                    <div class="w-full bg-slate-950 h-1 rounded overflow-hidden">
-                                        <div id="bar-symmetry" class="h-full bg-emerald-400" style="width: 92.4%"></div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <div class="flex justify-between text-slate-400 mb-1">
-                                        <span>ACTIVIDAD NEURO-TRANSMISORA</span>
-                                        <span id="metric-neuro">81.1%</span>
-                                    </div>
-                                    <div class="w-full bg-slate-950 h-1 rounded overflow-hidden">
-                                        <div id="bar-neuro" class="h-full bg-cyan-400" style="width: 81.1%"></div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <div class="flex justify-between text-slate-400 mb-1">
-                                        <span>PULSO OPTICO ESTIMADO</span>
-                                        <span id="metric-pulse">78 BPM</span>
-                                    </div>
-                                    <div class="w-full bg-slate-950 h-1 rounded overflow-hidden">
-                                        <div id="bar-pulse" class="h-full bg-fuchsia-400" style="width: 78%"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Interactive Diagnostic Summary -->
-                    <div class="border-t border-slate-900 pt-4 mt-4 font-mono-sci text-3xs text-slate-500 space-y-1">
-                        <div>&gt; HOLOGRAPH OVERLAY STATUS: <span class="text-emerald-400">CALIBRATED</span></div>
-                        <div>&gt; CHRONO-MEASURE TIME: <span id="diagnose-time">0.000s</span></div>
-                        <div class="flex items-center justify-between text-slate-400 mt-2">
-                            <span>REGISTROS HISTÓRICOS DE ESCANEO</span>
-                            <button id="btn-clear-history" class="hover:text-cyan-400 transition underline">LIMPIAR</button>
-                        </div>
-                    </div>
-
+                <!-- Notificación rápida de consejos de interacción -->
+                <div class="bg-gradient-to-r from-cyber-cyan/10 to-transparent border-l-4 border-cyber-cyan px-4 py-2 rounded text-xs text-slate-200 font-hud">
+                    <span class="text-cyber-cyan font-bold">INFO:</span> <span id="hud-tips">Guiña un ojo, sonríe o inclina la cabeza para interactuar con la IA.</span>
                 </div>
 
-                <!-- HISTORIC LIST OF PREVIOUS SCANNINGS -->
-                <div class="cyber-glass p-4 rounded-xl flex flex-col h-40">
-                    <h4 class="font-cyber text-2xs tracking-widest text-slate-400 mb-2">REMANENTE BIOÉCTRICO (HISTORIAL)</h4>
-                    <div id="history-container" class="flex-grow overflow-y-auto space-y-2 pr-1 text-2xs font-mono-sci">
-                        <!-- History items populated dynamically -->
-                        <div class="text-slate-500 text-center py-6 italic">No se han registrado diagnósticos de humor.</div>
-                    </div>
-                </div>
+                <!-- Panel Semitransparente Principal -->
+                <div class="bg-cyber-panel backdrop-blur-lg border border-slate-700/60 rounded-xl p-5 text-white shadow-2xl relative overflow-hidden">
+                    <!-- Glow Dinámico de Fondo que cambia según la emoción -->
+                    <div id="dynamic-glow" class="absolute -right-16 -bottom-16 w-32 h-32 rounded-full bg-cyber-cyan/20 blur-3xl transition-all duration-500"></div>
 
-            </section>
+                    <!-- Cabecera de Traducción -->
+                    <div class="flex justify-between items-start mb-4 relative z-10">
+                        <div>
+                            <span class="text-xs font-hud text-cyber-cyan uppercase tracking-widest">[ TRADUCCIÓN FACIAL ]</span>
+                            <h2 class="text-2xl font-bold font-hud tracking-wide" id="trans-title">Calibrando rostro...</h2>
+                        </div>
+                        <div class="w-14 h-14 bg-slate-800/80 rounded-xl flex items-center justify-center text-3xl border border-slate-700" id="trans-emoji">
+                            🤖
+                        </div>
+                    </div>
+
+                    <!-- Barra de Confianza de Lectura -->
+                    <div class="mb-4 relative z-10">
+                        <div class="flex justify-between font-hud text-xs text-slate-400 mb-1">
+                            <span>NIVEL DE CONFIANZA COGNITIVA</span>
+                            <span id="trans-confidence" class="text-cyber-cyan">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden border border-slate-700">
+                            <div id="trans-confidence-bar" class="h-full bg-gradient-to-r from-cyber-blue to-cyber-cyan transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Interpretación Teórica -->
+                    <div class="bg-cyber-dark/60 rounded-lg p-3.5 border border-slate-800 relative z-10">
+                        <p class="text-xs text-slate-400 uppercase font-hud mb-1 tracking-wider">[ INTERPRETACIÓN ESTIMADA ]</p>
+                        <p class="text-sm text-slate-200" id="trans-desc">Sitúate frente a la cámara y asegura una buena iluminación. El sistema buscará tu firma geométrica facial.</p>
+                    </div>
+
+                    <!-- Disclaimer -->
+                    <p class="text-[9px] text-slate-500 font-hud text-center mt-3 uppercase tracking-wider">
+                        Lectura de telemetría experimental. No representa un diagnóstico emocional o psicológico.
+                    </p>
+                </div>
+            </footer>
         </div>
-
-        <!-- FOOTER & AUDIO HELPER -->
-        <footer class="w-full text-center mt-auto px-6 text-3xs font-mono-sci text-slate-600 select-none">
-            <p>AURASCAN AR // COMPILACIÓN DE SISTEMA 2026.1 // NO RECOGE NI RECONOCE DATOS PERSONALES PRIVADOS.</p>
-        </footer>
     </main>
 
     <script>
-        // --- CONSTANTS AND CONFIG ---
-        const MOODS_DATABASE = [
-            {
-                id: 'radiant',
-                title: 'Euforia Radiante',
-                subtitle: 'Saturación Dopamínica Máxima',
-                emoji: '✨',
-                color: '#22c55e', // Emerald
-                secondary: '#10b981',
-                desc: 'Los puntos clave en las comisuras orbiculares y cigomáticas muestran elevación constante. El espectro de calor facial apunta a altos niveles de endorfinas y serotonina optimizada.',
-                symmetry: 96.5,
-                neuro: 94.8,
-                pulse: 95
-            },
-            {
-                id: 'zen',
-                title: 'Zen Criogénico',
-                subtitle: 'Homeostasis Absoluta',
-                emoji: '🧘',
-                color: '#06b6d4', // Cyan
-                secondary: '#3b82f6',
-                desc: 'Se registra una simetría armónica del 99% con fluctuaciones biomecánicas mínimas. Tu espectro áurico emana estabilidad, baja frecuencia beta y ondas cerebrales alfa estables.',
-                symmetry: 98.9,
-                neuro: 35.2,
-                pulse: 62
-            },
-            {
-                id: 'overclocked',
-                title: 'Estresado en Overclock',
-                subtitle: 'Saturación de Cortisol Crítica',
-                emoji: '⚡',
-                color: '#ef4444', // Red
-                secondary: '#f97316',
-                desc: 'Micropulsos involuntarios en el párpado superior detectados. La contracción del macetero lateral indica estrés acumulado. Recomendación: Reiniciar sistema orgánico con cafeína reducida.',
-                symmetry: 74.2,
-                neuro: 99.1,
-                pulse: 115
-            },
-            {
-                id: 'misterioso',
-                title: 'Misterio Encriptado',
-                subtitle: 'Neutralidad Incongruente',
-                emoji: '🔮',
-                color: '#a855f7', // Purple
-                secondary: '#ec4899',
-                desc: 'Malla facial asimétrica indescifrable para el algoritmo estándar. El flujo térmico es mixto; es posible que estés ocultando un estado de humor sarcástico o planificando hackear la red.',
-                symmetry: 55.4,
-                neuro: 68.3,
-                pulse: 75
-            },
-            {
-                id: 'caotico',
-                title: 'Caótico Neutral',
-                subtitle: 'Disonancia Dinámica',
-                emoji: '👾',
-                color: '#f59e0b', // Amber
-                secondary: '#e11d48',
-                desc: 'Inestabilidad emocional microescala detectada. Las comisuras labiales oscilan entre la euforia y la apatía a gran velocidad. Eres un enigma biométrico indomable.',
-                symmetry: 81.3,
-                neuro: 88.6,
-                pulse: 88
-            },
-            {
-                id: 'melancolico',
-                title: 'Nostalgia de Neón',
-                subtitle: 'Reflejo Melancólico Estelar',
-                emoji: '🌌',
-                color: '#3b82f6', // Blue
-                secondary: '#6366f1',
-                desc: 'Frecuencia térmica concentrada bajo los conductos lagrimales. La simetría general decae levemente por retracción frontal. Diagnóstico: Soledad retro-futurista.',
-                symmetry: 88.1,
-                neuro: 48.9,
-                pulse: 68
+        /* ==========================================
+           1. CLASE SINTETIZADORA DE SONIDO (AUDIO WEB NATIVO)
+           ========================================== */
+        class AudioSynth {
+            constructor() {
+                this.ctx = null;
+                this.masterVolume = null;
+                this.lastToneTime = 0;
             }
-        ];
 
-        // --- GLOBAL STATE ---
-        let stream = null;
-        let isScanning = false;
-        let currentFilter = 'normal';
-        let customFacePoints = []; // Dynamically generated face tracker points
-        let animationFrameId = null;
-        let audioCtx = null;
-        let isAudioMuted = false;
-        let scanProgress = 0;
-        let historyList = [];
-
-        // --- UI ELEMENTS ---
-        const welcomeScreen = document.getElementById('welcome-screen');
-        const btnInitialize = document.getElementById('btn-initialize');
-        const mainLayout = document.querySelector('body > main');
-        const videoElement = document.getElementById('webcam');
-        const canvas = document.getElementById('ar-canvas');
-        const ctx = canvas.getContext('2d');
-        const cameraLoading = document.getElementById('camera-loading');
-        const btnScan = document.getElementById('btn-scan');
-        const btnRandomize = document.getElementById('btn-randomize');
-        const filterButtons = document.querySelectorAll('.filter-btn');
-        const systemAlert = document.getElementById('system-alert');
-        const systemAlertText = document.getElementById('system-alert-text');
-        
-        // Results elements
-        const idleResultsState = document.getElementById('idle-results-state');
-        const scanningResultsState = document.getElementById('scanning-results-state');
-        const activeResultsState = document.getElementById('active-results-state');
-        const progressBarScan = document.getElementById('progress-bar-scan');
-        const scanningPhaseText = document.getElementById('scanning-phase-text');
-        const moodAvatarContainer = document.getElementById('mood-avatar-container');
-        const moodTitle = document.getElementById('mood-title');
-        const moodSubtitle = document.getElementById('mood-subtitle');
-        const moodDesc = document.getElementById('mood-desc');
-        const metricSymmetry = document.getElementById('metric-symmetry');
-        const barSymmetry = document.getElementById('bar-symmetry');
-        const metricNeuro = document.getElementById('metric-neuro');
-        const barNeuro = document.getElementById('bar-neuro');
-        const metricPulse = document.getElementById('metric-pulse');
-        const barPulse = document.getElementById('bar-pulse');
-        const diagnoseTimeText = document.getElementById('diagnose-time');
-        const historyContainer = document.getElementById('history-container');
-        const btnClearHistory = document.getElementById('btn-clear-history');
-        const btnAudioToggle = document.getElementById('btn-audio-toggle');
-        const audioIcon = document.getElementById('audio-icon');
-
-        // --- WEB AUDIO SYNTHESIZER ---
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            init() {
+                if (this.ctx) return;
+                // Inicialización segura del contexto de Audio
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioCtx();
+                this.masterVolume = this.ctx.createGain();
+                this.masterVolume.gain.setValueAtTime(0.1, this.ctx.currentTime); // Volumen general calibrado a 10%
+                this.masterVolume.connect(this.ctx.destination);
             }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-        }
 
-        function playSound(type) {
-            if (isAudioMuted || !audioCtx) return;
-            
-            try {
-                const now = audioCtx.currentTime;
+            resume() {
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            // Reproduce un bip tecnológico rápido
+            playBeep(freq = 600, duration = 0.08, type = 'sine') {
+                if (!this.ctx) return;
+                this.resume();
+
+                const osc = this.ctx.createOscillator();
+                const gainNode = this.ctx.createGain();
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+                gainNode.gain.setValueAtTime(0.08, this.ctx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+
+                osc.connect(gainNode);
+                gainNode.connect(this.masterVolume);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+
+            // Reproduce un barrido de inicialización de sistemas
+            playBootUp() {
+                if (!this.ctx) return;
+                this.resume();
+                const now = this.ctx.currentTime;
                 
-                if (type === 'click') {
-                    // Futuristic clean click
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
+                // Arpegio ascendente futurista
+                const notes = [300, 450, 600, 900];
+                notes.forEach((f, index) => {
+                    setTimeout(() => {
+                        this.playBeep(f, 0.15, 'triangle');
+                    }, index * 100);
+                });
+            }
+
+            // Sonidos interactivos adaptados al estado emocional
+            playExpressionSweep(type) {
+                if (!this.ctx) return;
+                this.resume();
+                
+                const now = this.ctx.currentTime;
+                if (now - this.lastToneTime < 1.0) return; // Limitar sonidos constantes (anti-spam)
+                this.lastToneTime = now;
+
+                const osc = this.ctx.createOscillator();
+                const gainNode = this.ctx.createGain();
+                osc.connect(gainNode);
+                gainNode.connect(this.masterVolume);
+
+                gainNode.gain.setValueAtTime(0.05, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+
+                if (type === 'alegria') {
+                    // Tono alegre ascendente
                     osc.type = 'sine';
-                    osc.frequency.setValueAtTime(1000, now);
-                    osc.frequency.exponentialRampToValueAtTime(150, now + 0.08);
-                    
-                    gain.gain.setValueAtTime(0.15, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-                    
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start(now);
-                    osc.stop(now + 0.08);
-                } 
-                else if (type === 'scanning') {
-                    // Modulated scientific tick pulse
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.5);
+                } else if (type === 'sorpresa') {
+                    // Barrido rápido y agudo
                     osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(350, now);
-                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.15);
-                    
-                    gain.gain.setValueAtTime(0.1, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-                    
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start(now);
-                    osc.stop(now + 0.15);
-                }
-                else if (type === 'laser') {
-                    // Heavy sweep laser sound
-                    const osc = audioCtx.createOscillator();
-                    const filter = audioCtx.createBiquadFilter();
-                    const gain = audioCtx.createGain();
-                    
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.3);
+                } else if (type === 'frown') {
+                    // Sonido grave
                     osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(150, now);
-                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.6);
-                    
-                    filter.type = 'lowpass';
-                    filter.frequency.setValueAtTime(200, now);
-                    filter.frequency.exponentialRampToValueAtTime(2000, now + 0.6);
-                    
-                    gain.gain.setValueAtTime(0.2, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
-                    
-                    osc.connect(filter);
-                    filter.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    
-                    osc.start(now);
-                    osc.stop(now + 0.65);
-                }
-                else if (type === 'success') {
-                    // Double synth success sound (perfect chords)
-                    const osc1 = audioCtx.createOscillator();
-                    const osc2 = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    
-                    osc1.type = 'sine';
-                    osc1.frequency.setValueAtTime(523.25, now); // C5
-                    osc1.frequency.setValueAtTime(659.25, now + 0.1); // E5
-                    osc1.frequency.setValueAtTime(783.99, now + 0.2); // G5
-                    
-                    osc2.type = 'triangle';
-                    osc2.frequency.setValueAtTime(261.63, now); // C4
-                    osc2.frequency.setValueAtTime(329.63, now + 0.1); // E4
-                    osc2.frequency.setValueAtTime(392.00, now + 0.2); // G4
-                    
-                    gain.gain.setValueAtTime(0.15, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-                    
-                    osc1.connect(gain);
-                    osc2.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    
-                    osc1.start(now);
-                    osc2.start(now);
-                    osc1.stop(now + 0.4);
-                    osc2.stop(now + 0.4);
-                }
-                else if (type === 'alert') {
-                    // Caution buzzer
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'square';
                     osc.frequency.setValueAtTime(180, now);
-                    osc.frequency.linearRampToValueAtTime(150, now + 0.2);
-                    
-                    gain.gain.setValueAtTime(0.1, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-                    
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start(now);
-                    osc.stop(now + 0.25);
-                }
-            } catch (err) {
-                console.error("Audio Synthesis error: ", err);
-            }
-        }
-
-        // --- CAMERA SYSTEM & AVATAR FALLBACK ---
-        async function setupCamera() {
-            try {
-                // Request modern user camera
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'user',
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
-                    },
-                    audio: false
-                });
-                
-                videoElement.srcObject = stream;
-                
-                // Wait for video meta to load
-                videoElement.onloadedmetadata = () => {
-                    videoElement.play();
-                    // Setup UI resolutions
-                    document.getElementById('hud-resolution').textContent = `${videoElement.videoWidth}x${videoElement.videoHeight}`;
-                    cameraLoading.classList.add('hidden');
-                    showAlert('Cámara conectada. Filtros holográficos de alineación activados.');
-                };
-            } catch (err) {
-                console.warn("Camera blocked or unavailable, launching VR hologram face mesh simulation mode: ", err);
-                cameraLoading.classList.add('hidden');
-                showAlert('Modo Holograma Simulado Activo. Capturador físico no detectado.');
-                document.getElementById('hud-resolution').textContent = "VIRTUAL-AVATAR-SIM";
-                document.getElementById('hud-coords').innerHTML = `<span class="text-amber-500">SIMULATION ACTIVE</span>`;
-            }
-        }
-
-        // --- CUSTOM ALERTS ---
-        function showAlert(msg) {
-            systemAlertText.innerText = msg;
-            systemAlert.classList.remove('hidden', 'opacity-0', 'translate-x-10');
-            systemAlert.classList.add('opacity-100', 'translate-x-0');
-            playSound('alert');
-            
-            setTimeout(() => {
-                hideAlert();
-            }, 6000);
-        }
-
-        function hideAlert() {
-            systemAlert.classList.add('opacity-0', 'translate-x-10');
-            setTimeout(() => {
-                systemAlert.classList.add('hidden');
-            }, 300);
-        }
-
-        // --- FACIAL RECONSTRUCTION & RENDER ENGINE ---
-        
-        // Generates facial landmarks (eyes, forehead, cheekbones, nose bridge, jawline, mouth)
-        function initFacePoints() {
-            customFacePoints = [];
-            
-            // Layout approximate face points that can move organically
-            // Form a face mask outline (0 to 14)
-            for (let i = 0; i < 15; i++) {
-                const angle = Math.PI + (i / 14) * Math.PI;
-                customFacePoints.push({
-                    id: `contour_${i}`,
-                    baseX: 0.5 + Math.cos(angle) * 0.22,
-                    baseY: 0.5 + Math.sin(angle) * 0.28,
-                    x: 0, y: 0,
-                    targetX: 0, targetY: 0,
-                    noiseOffset: Math.random() * 100
-                });
-            }
-            
-            // Left eye (15-18)
-            customFacePoints.push({ id: 'eye_l_0', baseX: 0.40, baseY: 0.42, x: 0, y: 0 });
-            customFacePoints.push({ id: 'eye_l_1', baseX: 0.44, baseY: 0.40, x: 0, y: 0 });
-            customFacePoints.push({ id: 'eye_l_2', baseX: 0.42, baseY: 0.44, x: 0, y: 0 });
-            
-            // Right eye (19-22)
-            customFacePoints.push({ id: 'eye_r_0', baseX: 0.60, baseY: 0.42, x: 0, y: 0 });
-            customFacePoints.push({ id: 'eye_r_1', baseX: 0.56, baseY: 0.40, x: 0, y: 0 });
-            customFacePoints.push({ id: 'eye_r_2', baseX: 0.58, baseY: 0.44, x: 0, y: 0 });
-            
-            // Nose Bridge & Base (23-26)
-            customFacePoints.push({ id: 'nose_0', baseX: 0.50, baseY: 0.38, x: 0, y: 0 });
-            customFacePoints.push({ id: 'nose_1', baseX: 0.50, baseY: 0.52, x: 0, y: 0 });
-            customFacePoints.push({ id: 'nose_l', baseX: 0.46, baseY: 0.52, x: 0, y: 0 });
-            customFacePoints.push({ id: 'nose_r', baseX: 0.54, baseY: 0.52, x: 0, y: 0 });
-            
-            // Mouth contours (27-33)
-            customFacePoints.push({ id: 'mouth_l', baseX: 0.42, baseY: 0.62, x: 0, y: 0 });
-            customFacePoints.push({ id: 'mouth_r', baseX: 0.58, baseY: 0.62, x: 0, y: 0 });
-            customFacePoints.push({ id: 'mouth_top', baseX: 0.50, baseY: 0.58, x: 0, y: 0 });
-            customFacePoints.push({ id: 'mouth_bottom', baseX: 0.50, baseY: 0.66, x: 0, y: 0 });
-            customFacePoints.push({ id: 'mouth_inner_l', baseX: 0.46, baseY: 0.62, x: 0, y: 0 });
-            customFacePoints.push({ id: 'mouth_inner_r', baseX: 0.54, baseY: 0.62, x: 0, y: 0 });
-            
-            // Forehead / Crown nodes (34-37)
-            customFacePoints.push({ id: 'crown_l', baseX: 0.38, baseY: 0.24, x: 0, y: 0 });
-            customFacePoints.push({ id: 'crown_mid', baseX: 0.50, baseY: 0.22, x: 0, y: 0 });
-            customFacePoints.push({ id: 'crown_r', baseX: 0.62, baseY: 0.24, x: 0, y: 0 });
-        }
-
-        // Simulates dynamic micro-movements on landmarks representing tracking jitter/breathing
-        function updateFacePoints(width, height, time) {
-            customFacePoints.forEach(p => {
-                // Organic math models for simulated facial gestures
-                const breathe = Math.sin(time * 0.002 + (p.noiseOffset || 0)) * 0.004;
-                const jitterX = Math.cos(time * 0.005 + (p.noiseOffset || 0)) * 0.002;
-                const jitterY = Math.sin(time * 0.004 + (p.noiseOffset || 0)) * 0.002;
-                
-                // Add micro mouth movement depending on simulated scan activity
-                let expressShiftY = 0;
-                let expressShiftX = 0;
-                if (isScanning) {
-                    expressShiftY = Math.sin(time * 0.05) * 0.008; 
-                }
-
-                p.x = (p.baseX + jitterX + expressShiftX) * width;
-                p.y = (p.baseY + breathe + jitterY + expressShiftY) * height;
-            });
-        }
-
-        // Draw connections between indices
-        function drawMeshLine(ctx, idxA, idxB, color = 'rgba(0, 242, 254, 0.45)', width = 1) {
-            if (customFacePoints[idxA] && customFacePoints[idxB]) {
-                ctx.beginPath();
-                ctx.moveTo(customFacePoints[idxA].x, customFacePoints[idxA].y);
-                ctx.lineTo(customFacePoints[idxB].x, customFacePoints[idxB].y);
-                ctx.strokeStyle = color;
-                ctx.lineWidth = width;
-                ctx.stroke();
-            }
-        }
-
-        // Main Rendering Loop
-        function renderAR(timestamp) {
-            // Resize canvas context dynamically keeping aspect-ratio bounds
-            if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
-                canvas.width = canvas.clientWidth;
-                canvas.height = canvas.clientHeight;
-                initFacePoints(); // Re-adjust face mesh anchors to matching canvas shape
-            }
-
-            const w = canvas.width;
-            const h = canvas.height;
-
-            // Clear screen
-            ctx.clearRect(0, 0, w, h);
-
-            // 1. DRAW CAMERA STREAM (IF AVAILABLE) OR ROTATING AVATAR BACKGROUND
-            if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
-                ctx.drawImage(videoElement, 0, 0, w, h);
-            } else {
-                // Virtual cyber grid & avatar silhouette background when webcam is inactive
-                ctx.fillStyle = '#05070f';
-                ctx.fillRect(0, 0, w, h);
-                
-                // Draw cool circular retro futuristic grid
-                ctx.strokeStyle = 'rgba(0, 242, 254, 0.15)';
-                ctx.lineWidth = 1;
-                for (let i = 1; i <= 5; i++) {
-                    ctx.beginPath();
-                    ctx.arc(w / 2, h / 2, Math.min(w, h) * 0.12 * i, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-                
-                // Dynamic rotating background axes
-                ctx.beginPath();
-                ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
-                ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h);
-                ctx.stroke();
-
-                // Abstract wireframe brain-core / avatar backdrop
-                ctx.fillStyle = 'rgba(0, 242, 254, 0.03)';
-                ctx.beginPath();
-                ctx.arc(w/2, h/2, Math.min(w, h) * 0.28, 0, Math.PI*2);
-                ctx.fill();
-            }
-
-            // 2. APPLY HOLOGRAPHIC CHROME FILTERS IN REAL TIME
-            applyHolographicFilter(ctx, w, h);
-
-            // 3. COMPUTE FACIAL COORDINATES
-            updateFacePoints(w, h, timestamp);
-
-            // 4. DRAW FACE MESH WIRES
-            // Draw face contour outlines
-            ctx.strokeStyle = getFilterNeonColor();
-            ctx.lineWidth = 1.2;
-            
-            // Loop jawline
-            ctx.beginPath();
-            ctx.moveTo(customFacePoints[0].x, customFacePoints[0].y);
-            for (let i = 1; i < 15; i++) {
-                ctx.lineTo(customFacePoints[i].x, customFacePoints[i].y);
-            }
-            ctx.strokeStyle = `${getFilterNeonColor()}7a`; // Adding opacity
-            ctx.stroke();
-
-            // Link forehead / crown to jawline
-            drawMeshLine(ctx, 34, 0, `${getFilterNeonColor()}7a`);
-            drawMeshLine(ctx, 34, 35, `${getFilterNeonColor()}7a`);
-            drawMeshLine(ctx, 35, 36, `${getFilterNeonColor()}7a`);
-            drawMeshLine(ctx, 36, 14, `${getFilterNeonColor()}7a`);
-
-            // Inner connections (Biometric triangulation)
-            // Left Eye Mesh
-            drawMeshLine(ctx, 15, 16, `${getFilterNeonColor()}a8`);
-            drawMeshLine(ctx, 16, 17, `${getFilterNeonColor()}a8`);
-            drawMeshLine(ctx, 17, 15, `${getFilterNeonColor()}a8`);
-            // Target point left eye
-            drawTargetMarker(ctx, customFacePoints[15].x + 10, customFacePoints[15].y - 2, 8, timestamp);
-
-            // Right Eye Mesh
-            drawMeshLine(ctx, 18, 19, `${getFilterNeonColor()}a8`);
-            drawMeshLine(ctx, 19, 20, `${getFilterNeonColor()}a8`);
-            drawMeshLine(ctx, 20, 18, `${getFilterNeonColor()}a8`);
-            // Target point right eye
-            drawTargetMarker(ctx, customFacePoints[18].x - 10, customFacePoints[18].y - 2, 8, timestamp);
-
-            // Nose bridge wires
-            drawMeshLine(ctx, 21, 22, `${getFilterNeonColor()}60`);
-            drawMeshLine(ctx, 22, 23, `${getFilterNeonColor()}60`);
-            drawMeshLine(ctx, 22, 24, `${getFilterNeonColor()}60`);
-            drawMeshLine(ctx, 23, 24, `${getFilterNeonColor()}60`);
-
-            // Nose-mouth alignments
-            drawMeshLine(ctx, 22, 27, `${getFilterNeonColor()}33`);
-            drawMeshLine(ctx, 23, 25, `${getFilterNeonColor()}33`);
-            drawMeshLine(ctx, 24, 26, `${getFilterNeonColor()}33`);
-
-            // Mouth outline
-            drawMeshLine(ctx, 25, 27, `${getFilterNeonColor()}a0`);
-            drawMeshLine(ctx, 27, 28, `${getFilterNeonColor()}a0`);
-            drawMeshLine(ctx, 28, 26, `${getFilterNeonColor()}a0`);
-            drawMeshLine(ctx, 26, 29, `${getFilterNeonColor()}a0`);
-            drawMeshLine(ctx, 29, 25, `${getFilterNeonColor()}a0`);
-            drawMeshLine(ctx, 29, 30, `${getFilterNeonColor()}a0`);
-            drawMeshLine(ctx, 30, 27, `${getFilterNeonColor()}a0`);
-
-            // Checkbone to crown cross triangulation (Cyber armor look)
-            drawMeshLine(ctx, 3, 21, `${getFilterNeonColor()}22`);
-            drawMeshLine(ctx, 11, 24, `${getFilterNeonColor()}22`);
-            drawMeshLine(ctx, 34, 15, `${getFilterNeonColor()}33`);
-            drawMeshLine(ctx, 36, 18, `${getFilterNeonColor()}33`);
-
-            // 5. DRAW DATA LABELS AND POINTS
-            customFacePoints.forEach((p, idx) => {
-                // Determine nodes to emphasize
-                const isMajorNode = idx % 3 === 0 || p.id.startsWith('eye') || p.id.startsWith('mouth');
-                
-                if (isMajorNode) {
-                    ctx.fillStyle = getFilterNeonColor();
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, idx === 15 || idx === 18 ? 3.5 : 2, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Tiny pulse ring on specific key sensors
-                    if (idx === 15 || idx === 18 || idx === 27) {
-                        ctx.strokeStyle = getFilterNeonColor();
-                        ctx.lineWidth = 0.5;
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, 4 + Math.sin(timestamp * 0.01) * 3, 0, Math.PI * 2);
-                        ctx.stroke();
-                    }
-                }
-            });
-
-            // 6. DRAW SEARCH/LOCK-ON CROSSHAIRS OVER THE FACE
-            const faceCenterX = (customFacePoints[21].x + customFacePoints[18].x) / 2;
-            const faceCenterY = (customFacePoints[21].y + customFacePoints[28].y) / 2;
-            
-            ctx.strokeStyle = `${getFilterNeonColor()}99`;
-            ctx.lineWidth = 1;
-            
-            // Outer bracket locks
-            const boxSize = Math.min(w, h) * 0.32;
-            ctx.strokeRect(faceCenterX - boxSize/2, faceCenterY - boxSize/2, boxSize, boxSize);
-            
-            // Clean dynamic brackets
-            const bLen = 15;
-            ctx.lineWidth = 2;
-            // Top Left corner
-            ctx.beginPath();
-            ctx.moveTo(faceCenterX - boxSize/2 - 2, faceCenterY - boxSize/2 + bLen);
-            ctx.lineTo(faceCenterX - boxSize/2 - 2, faceCenterY - boxSize/2 - 2);
-            ctx.lineTo(faceCenterX - boxSize/2 + bLen, faceCenterY - boxSize/2 - 2);
-            ctx.stroke();
-            // Top Right
-            ctx.beginPath();
-            ctx.moveTo(faceCenterX + boxSize/2 + 2, faceCenterY - boxSize/2 + bLen);
-            ctx.lineTo(faceCenterX + boxSize/2 + 2, faceCenterY - boxSize/2 - 2);
-            ctx.lineTo(faceCenterX + boxSize/2 - bLen, faceCenterY - boxSize/2 - 2);
-            ctx.stroke();
-            // Bottom Left
-            ctx.beginPath();
-            ctx.moveTo(faceCenterX - boxSize/2 - 2, faceCenterY + boxSize/2 - bLen);
-            ctx.lineTo(faceCenterX - boxSize/2 - 2, faceCenterY + boxSize/2 + 2);
-            ctx.lineTo(faceCenterX - boxSize/2 + bLen, faceCenterY + boxSize/2 + 2);
-            ctx.stroke();
-            // Bottom Right
-            ctx.beginPath();
-            ctx.moveTo(faceCenterX + boxSize/2 + 2, faceCenterY + boxSize/2 - bLen);
-            ctx.lineTo(faceCenterX + boxSize/2 + 2, faceCenterY + boxSize/2 + 2);
-            ctx.lineTo(faceCenterX + boxSize/2 - bLen, faceCenterY + boxSize/2 + 2);
-            ctx.stroke();
-
-            // Real-time HUD reading overlay text inside canvas
-            ctx.fillStyle = getFilterNeonColor();
-            ctx.font = '9px "Share Tech Mono"';
-            ctx.fillText(`SYS_SCANNER_LOCK [LOCK=TRUE]`, faceCenterX - boxSize/2, faceCenterY - boxSize/2 - 6);
-            ctx.fillText(`X: ${faceCenterX.toFixed(1)} Y: ${faceCenterY.toFixed(1)}`, faceCenterX - boxSize/2, faceCenterY + boxSize/2 + 15);
-
-            animationFrameId = requestAnimationFrame(renderAR);
-        }
-
-        // Helper to draw eye target crosshair
-        function drawTargetMarker(ctx, x, y, size, time) {
-            ctx.strokeStyle = getFilterNeonColor();
-            ctx.lineWidth = 0.5;
-            ctx.beginPath();
-            ctx.moveTo(x - size, y); ctx.lineTo(x + size, y);
-            ctx.moveTo(x, y - size); ctx.lineTo(x, y + size);
-            ctx.stroke();
-            
-            ctx.beginPath();
-            ctx.arc(x, y, size/2, 0, Math.PI*2);
-            ctx.stroke();
-        }
-
-        // Apply interactive canvas visual filters manually
-        function applyHolographicFilter(ctx, w, h) {
-            if (currentFilter === 'matrix') {
-                // Green tint scan lines
-                ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
-                ctx.fillRect(0, 0, w, h);
-                // Vertical green stream code markers
-                ctx.fillStyle = 'rgba(52, 211, 153, 0.2)';
-                ctx.font = '8px monospace';
-                for (let i = 0; i < w; i += 40) {
-                    const char = Math.random() > 0.5 ? "1" : "0";
-                    const randomY = Math.floor(Math.random() * h);
-                    ctx.fillText(char, i, randomY);
-                }
-            } 
-            else if (currentFilter === 'thermal') {
-                // High contrast purple-orange hue mapping simulation
-                ctx.fillStyle = 'rgba(236, 72, 153, 0.12)'; // Fuchsia wash
-                ctx.fillRect(0, 0, w, h);
-                // Radial center thermal bubble mapping face
-                const grad = ctx.createRadialGradient(w/2, h/2, 20, w/2, h/2, Math.min(w,h)*0.35);
-                grad.addColorStop(0, 'rgba(239, 68, 68, 0.35)'); // Red hot center
-                grad.addColorStop(0.6, 'rgba(245, 158, 11, 0.15)'); // Orange
-                grad.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.fillStyle = grad;
-                ctx.fillRect(0, 0, w, h);
-            } 
-            else if (currentFilter === 'glitch') {
-                // Random RGB / Chromatic aberration displacement block
-                if (Math.random() > 0.85) {
-                    const sliceY = Math.floor(Math.random() * h);
-                    const sliceH = Math.floor(Math.random() * 50) + 10;
-                    const shiftX = Math.floor(Math.random() * 30) - 15;
-                    ctx.drawImage(canvas, 0, sliceY, w, sliceH, shiftX, sliceY, w, sliceH);
-                    
-                    ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
-                    ctx.fillRect(0, sliceY, w, sliceH);
-                }
-            }
-        }
-
-        // Return core aesthetic color for active overlay filter
-        function getFilterNeonColor() {
-            switch (currentFilter) {
-                case 'matrix': return '#34d399'; // Emerald
-                case 'thermal': return '#f43f5e'; // Rose
-                case 'glitch': return '#fbbf24'; // Amber
-                default: return '#00f2fe'; // Tech cyan
-            }
-        }
-
-        // --- HUMOR CALCULATION & ALGORITHM ---
-        function runMoodScan() {
-            if (isScanning) return;
-            isScanning = true;
-            initAudio(); // Ensure context ready
-            playSound('laser');
-
-            // Show scanner laser visual overlay line
-            const laser = document.getElementById('scanning-laser');
-            laser.classList.remove('hidden');
-
-            // Shift results status view
-            idleResultsState.classList.add('hidden');
-            activeResultsState.classList.add('hidden');
-            scanningResultsState.classList.remove('hidden');
-            
-            document.getElementById('scan-status-badge').innerHTML = `
-                <span class="w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping"></span>
-                ESCANEO EN PROCESO
-            `;
-
-            scanProgress = 0;
-            const progressTimer = setInterval(() => {
-                scanProgress += Math.floor(Math.random() * 12) + 6;
-                if (scanProgress >= 100) {
-                    scanProgress = 100;
-                    clearInterval(progressTimer);
-                    finalizeMoodScan();
-                }
-                
-                progressBarScan.style.width = `${scanProgress}%`;
-                playSound('scanning');
-
-                // Cyberpunk text loading sequence steps
-                if (scanProgress < 25) {
-                    scanningPhaseText.innerText = "CAPTURANDO GEOMETRÍA FACIAL...";
-                } else if (scanProgress < 50) {
-                    scanningPhaseText.innerText = "CALCULANDO ÍNDICE NEURO-ÉCTRICO...";
-                } else if (scanProgress < 75) {
-                    scanningPhaseText.innerText = "EXTRAPOLANDO TERMOGRAFÍA CORONAL...";
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.5);
                 } else {
-                    scanningPhaseText.innerText = "DECODIFICANDO AURA DE COLOR...";
+                    // Neutro o sutil
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(350, now);
+                    osc.frequency.exponentialRampToValueAtTime(450, now + 0.4);
                 }
-            }, 180);
-        }
 
-        function finalizeMoodScan() {
-            isScanning = false;
-            playSound('success');
-
-            // Select pseudo-random mood based on real-time factors
-            const selectedMoodIndex = Math.floor(Math.random() * MOODS_DATABASE.length);
-            const diagnosedMood = MOODS_DATABASE[selectedMoodIndex];
-
-            // Render Results View
-            scanningResultsState.classList.add('hidden');
-            activeResultsState.classList.remove('hidden');
-
-            // Populating UI data elements
-            moodAvatarContainer.innerText = diagnosedMood.emoji;
-            moodAvatarContainer.style.borderColor = diagnosedMood.color;
-            moodAvatarContainer.style.boxShadow = `0 0 15px ${diagnosedMood.color}40`;
-            moodTitle.innerText = diagnosedMood.title;
-            moodTitle.style.color = diagnosedMood.color;
-            moodSubtitle.innerText = diagnosedMood.subtitle;
-            moodSubtitle.style.color = `${diagnosedMood.color}d0`;
-            moodDesc.innerText = diagnosedMood.desc;
-
-            // Generate slight random variations on metrics for visual fidelity
-            const customSymmetry = (diagnosedMood.symmetry + (Math.random() * 4 - 2)).toFixed(1);
-            const customNeuro = (diagnosedMood.neuro + (Math.random() * 6 - 3)).toFixed(1);
-            const customPulse = Math.floor(diagnosedMood.pulse + (Math.random() * 8 - 4));
-
-            metricSymmetry.innerText = `${customSymmetry}%`;
-            barSymmetry.style.width = `${customSymmetry}%`;
-            barSymmetry.style.backgroundColor = diagnosedMood.color;
-
-            metricNeuro.innerText = `${customNeuro}%`;
-            barNeuro.style.width = `${customNeuro}%`;
-            barNeuro.style.backgroundColor = diagnosedMood.color;
-
-            metricPulse.innerText = `${customPulse} BPM`;
-            barPulse.style.width = `${Math.min(customPulse / 1.5, 100)}%`;
-            barPulse.style.backgroundColor = diagnosedMood.secondary;
-
-            // Update timestamp
-            const randomTimeTaken = (1.5 + Math.random() * 1.5).toFixed(3);
-            diagnoseTimeText.innerText = `${randomTimeTaken}s`;
-
-            // Add item to custom history logs
-            addToHistory(diagnosedMood);
-
-            // Hide scanner laser visual overlay
-            const laser = document.getElementById('scanning-laser');
-            laser.classList.add('hidden');
-
-            document.getElementById('scan-status-badge').innerHTML = `
-                <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
-                ANÁLISIS COMPLETADO
-            `;
-
-            // Play short cyber-filter glitch transition to show diagnosis match
-            const prevFilter = currentFilter;
-            currentFilter = 'glitch';
-            setTimeout(() => {
-                currentFilter = prevFilter;
-            }, 300);
-
-            showAlert(`Diagnóstico completo: ${diagnosedMood.title}`);
-        }
-
-        // Add scan items to reactive sidebar history list
-        function addToHistory(mood) {
-            const timeNow = new Date().toLocaleTimeString();
-            const historyItem = {
-                title: mood.title,
-                emoji: mood.emoji,
-                color: mood.color,
-                time: timeNow
-            };
-
-            historyList.unshift(historyItem);
-            
-            // Limit history log length
-            if (historyList.length > 5) {
-                historyList.pop();
+                osc.start();
+                osc.stop(now + 0.6);
             }
-
-            renderHistoryList();
         }
 
-        function renderHistoryList() {
-            if (historyList.length === 0) {
-                historyContainer.innerHTML = `<div class="text-slate-500 text-center py-6 italic">No se han registrado diagnósticos de humor.</div>`;
-                return;
-            }
+        const audio = new AudioSynth();
 
-            historyContainer.innerHTML = historyList.map(item => `
-                <div class="flex items-center justify-between p-2 rounded bg-slate-900/80 border-l-2 border-slate-700 hover:border-cyan-400 transition" style="border-left-color: ${item.color}">
-                    <div class="flex items-center space-x-2">
-                        <span class="text-base">${item.emoji}</span>
-                        <div>
-                            <p class="font-cyber font-bold tracking-wide" style="color: ${item.color}">${item.title}</p>
-                            <p class="text-3xs text-slate-500">${item.time} - BIOMETRIC CORRELATION</p>
-                        </div>
-                    </div>
-                    <span class="text-slate-400 text-3xs font-cyber">OK</span>
-                </div>
-            `).join('');
-        }
-
-        // --- INTERACTION & EVENT LISTENERS ---
-        
-        // Setup initial triggers on load
-        window.addEventListener('load', () => {
-            initFacePoints();
-        });
-
-        // Start button transition
-        btnInitialize.addEventListener('click', () => {
-            initAudio();
-            playSound('click');
-            
-            // Welcome slide up transitions
-            welcomeScreen.classList.add('translate-y-[-100%]');
-            setTimeout(() => {
-                welcomeScreen.classList.add('hidden');
-                mainLayout.classList.remove('hidden');
+        /* ==========================================
+           2. STREAMING_CHUNK: MOTOR 3D (THREE.JS AVATAR & WIRE MASK)
+           ========================================== */
+        class RenderEngine {
+            constructor() {
+                this.canvas = document.getElementById('ar-canvas');
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
                 
-                // Trigger camera hardware setup
-                setupCamera();
-                // Initialize rendering canvas
-                renderAR();
-            }, 500);
-        });
+                this.avatarGroup = null; // Grupo del avatar flotante
+                this.faceGeometry = null; // Geometría de la máscara proyectada
+                this.faceMesh = null; // Objeto malla de la máscara facial
+                this.showWireMask = true;
 
-        // Trigger manual biometric scan scan
-        btnScan.addEventListener('click', () => {
-            playSound('click');
-            runMoodScan();
-        });
+                this.particleSystem = null;
+                this.avatarEyes = [];
+                this.avatarMouth = null;
+                this.avatarOrbit = null;
+                this.avatarOrb = null;
+                
+                // Coloración del avatar
+                this.currentColor = new THREE.Color('#00FFFF');
+                this.targetColor = new THREE.Color('#00FFFF');
+            }
 
-        // Randomize mock positions / visual glitch trigger
-        btnRandomize.addEventListener('click', () => {
-            playSound('click');
-            // Trigger temporary visual mesh glitch
-            currentFilter = 'glitch';
-            setTimeout(() => {
-                currentFilter = 'normal';
-                // Trigger reset active active filter button highlight state
-                filterButtons.forEach(btn => {
-                    btn.classList.remove('active', 'border-cyan-400/40', 'text-cyan-400');
-                    btn.classList.add('border-slate-800', 'text-slate-400');
-                    if (btn.dataset.filter === 'normal') {
-                        btn.classList.add('active', 'border-cyan-400/40', 'text-cyan-400');
-                        btn.classList.remove('border-slate-800', 'text-slate-400');
+            init() {
+                // Configurar escena de Three.js
+                this.scene = new THREE.Scene();
+
+                // Cámara con perspectiva móvil óptima
+                this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.camera.position.set(0, 0, 5);
+
+                // Renderizador WebGL optimizado
+                this.renderer = new THREE.WebGLRenderer({
+                    canvas: this.canvas,
+                    alpha: true, // Fondo transparente para sobreponerse al video
+                    antialias: true,
+                    powerPreference: "high-performance"
+                });
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+
+                // Configuración de Luces
+                const ambientLight = new THREE.AmbientLight(0x0f172a, 1.5);
+                this.scene.add(ambientLight);
+
+                const dirLight = new THREE.DirectionalLight(0x00FFFF, 2.5);
+                dirLight.position.set(0, 5, 5);
+                this.scene.add(dirLight);
+
+                const pointLight = new THREE.PointLight(0xFF00FF, 3, 15);
+                pointLight.position.set(0, -1, 3);
+                this.scene.add(pointLight);
+
+                // Crear los dos componentes principales: Avatar y Máscara Proyectada
+                this.createHolographicAvatar();
+                this.createFaceMaskGeometry();
+                this.createParticles();
+
+                // Eventos de redimensionamiento
+                window.addEventListener('resize', () => this.onResize());
+            }
+
+            onResize() {
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                this.camera.aspect = w / h;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(w, h);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            }
+
+            // Crear el Asistente Robótico Flotante en 3D
+            createHolographicAvatar() {
+                this.avatarGroup = new THREE.Group();
+                // Lo posicionamos inicialmente a la derecha para diseño responsivo
+                this.avatarGroup.position.set(1.4, 0.8, 1);
+                this.avatarGroup.scale.set(0.6, 0.6, 0.6);
+                this.scene.add(this.avatarGroup);
+
+                // 1. Núcleo central luminoso
+                const coreGeo = new THREE.SphereGeometry(0.5, 32, 32);
+                const coreMat = new THREE.MeshPhongMaterial({
+                    color: 0x00FFFF,
+                    emissive: 0x009999,
+                    shininess: 100,
+                    transparent: true,
+                    opacity: 0.85
+                });
+                this.avatarOrb = new THREE.Mesh(coreGeo, coreMat);
+                this.avatarGroup.add(this.avatarOrb);
+
+                // 2. Anillo orbital cibernético
+                const torusGeo = new THREE.TorusGeometry(0.8, 0.04, 8, 64);
+                const ringMat = new THREE.MeshBasicMaterial({
+                    color: 0x00FFFF,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                this.avatarOrbit = new THREE.Mesh(torusGeo, ringMat);
+                this.avatarOrbit.rotation.x = Math.PI / 3;
+                this.avatarGroup.add(this.avatarOrbit);
+
+                // 3. Ojos del robot (Digitales)
+                const eyeGeo = new THREE.BoxGeometry(0.12, 0.04, 0.12);
+                const eyeMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+                
+                const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+                leftEye.position.set(-0.18, 0.12, 0.45);
+                
+                const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+                rightEye.position.set(0.18, 0.12, 0.45);
+
+                this.avatarGroup.add(leftEye);
+                this.avatarGroup.add(rightEye);
+                this.avatarEyes.push(leftEye, rightEye);
+
+                // 4. Panel de boca expresivo
+                const mouthGeo = new THREE.BoxGeometry(0.24, 0.03, 0.05);
+                const mouthMat = new THREE.MeshBasicMaterial({ color: 0x00FFFF });
+                this.avatarMouth = new THREE.Mesh(mouthGeo, mouthMat);
+                this.avatarMouth.position.set(0, -0.15, 0.45);
+                this.avatarGroup.add(this.avatarMouth);
+
+                // Ajuste inicial para móviles
+                this.adaptAvatarToScreen();
+            }
+
+            // Adaptabilidad espacial para que el avatar quepa en pantallas móviles
+            adaptAvatarToScreen() {
+                if (window.innerWidth < 768) {
+                    // Pantalla móvil: colocar flotando en el medio superior para no tapar los controles
+                    this.avatarGroup.position.set(0, 1.3, 1.2);
+                    this.avatarGroup.scale.set(0.45, 0.45, 0.45);
+                } else {
+                    // Pantalla escritorio: a un lado del rostro mapeado
+                    this.avatarGroup.position.set(1.5, 0.6, 1.5);
+                    this.avatarGroup.scale.set(0.65, 0.65, 0.65);
+                }
+            }
+
+            // Geometría dinámica para mapear los 468 puntos faciales
+            createFaceMaskGeometry() {
+                // Utilizaremos un BufferGeometry dinámico para construir la malla en base al rastreo en tiempo real
+                this.faceGeometry = new THREE.BufferGeometry();
+                
+                // Malla de índice para dibujar un wireframe facial bien definido
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0x00FFFF,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.35,
+                    depthWrite: false
+                });
+
+                this.faceMesh = new THREE.Mesh(this.faceGeometry, material);
+                this.scene.add(this.faceMesh);
+            }
+
+            // Partículas flotantes alrededor del robot
+            createParticles() {
+                const count = 80;
+                const geo = new THREE.BufferGeometry();
+                const pos = new Float32Array(count * 3);
+
+                for(let i=0; i < count*3; i+=3) {
+                    pos[i] = (Math.random() - 0.5) * 6;
+                    pos[i+1] = (Math.random() - 0.5) * 6;
+                    pos[i+2] = (Math.random() - 2);
+                }
+
+                geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+                const mat = new THREE.PointsMaterial({
+                    size: 0.04,
+                    color: 0x00BFFF,
+                    transparent: true,
+                    opacity: 0.8
+                });
+
+                this.particleSystem = new THREE.Points(geo, mat);
+                this.scene.add(this.particleSystem);
+            }
+
+            // Actualiza los puntos de la máscara facial 3D en base al output de MediaPipe
+            updateFaceMesh(landmarks) {
+                if (!this.showWireMask) {
+                    this.faceMesh.visible = false;
+                    return;
+                }
+                this.faceMesh.visible = true;
+
+                const positions = [];
+                // Mapear los puntos adaptando coordenadas espaciales
+                landmarks.forEach(lm => {
+                    // Transformación de coordenadas de normalizado (0 a 1) a espacio 3D
+                    // Centramos el rostro usando el punto de la nariz como referencia relativa o simplemente reescala
+                    const x = (lm.x - 0.5) * 3.5;
+                    const y = -(lm.y - 0.5) * 4.5;
+                    const z = -lm.z * 3.5; // Profundidad proyectada
+                    positions.push(x, y, z);
+                });
+
+                const vertices = new Float32Array(positions);
+                this.faceGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                this.faceGeometry.computeVertexNormals();
+                this.faceGeometry.attributes.position.needsUpdate = true;
+            }
+
+            // Animar comportamiento físico del avatar 3D
+            updateAvatar(expressions, headData, time) {
+                if (!this.avatarGroup) return;
+
+                this.adaptAvatarToScreen(); // Asegurar consistencia al rotar celular
+
+                // 1. Movimiento de levitación constante (Seno/Coseno)
+                this.avatarGroup.position.y += Math.sin(time * 2.5) * 0.003;
+                this.avatarOrbit.rotation.z += 0.015;
+
+                // 2. Imitación sutil de los movimientos de cabeza del usuario (Head Tracking)
+                const targetRotX = headData.pitch * 0.5;
+                const targetRotY = -headData.yaw * 0.5;
+                const targetRotZ = headData.roll * 0.3;
+
+                // Interpolación lineal suave (lerp)
+                this.avatarGroup.rotation.x += (targetRotX - this.avatarGroup.rotation.x) * 0.1;
+                this.avatarGroup.rotation.y += (targetRotY - this.avatarGroup.rotation.y) * 0.1;
+                this.avatarGroup.rotation.z += (targetRotZ - this.avatarGroup.rotation.z) * 0.1;
+
+                // 3. Reactividad expresiva del Avatar
+                if (expressions.smile > 0.4) {
+                    // Estado Alegre (Verde/Cyan)
+                    this.targetColor.setHex(0x10B981);
+                    this.avatarMouth.scale.set(1.2, 2.5, 1);
+                    this.avatarEyes.forEach(eye => eye.scale.set(1, 0.4, 1)); // Ojos achinados de felicidad
+                } else if (expressions.jawOpen > 0.4) {
+                    // Estado Sorprendido (Amarillo/Magenta)
+                    this.targetColor.setHex(0xFF00FF);
+                    this.avatarMouth.scale.set(0.6, 6, 1); // Boca muy abierta
+                    this.avatarEyes.forEach(eye => eye.scale.set(1.5, 1.5, 1)); // Ojos abiertos asombrados
+                } else if (expressions.frown > 0.45) {
+                    // Estado Molesto o Concentrado (Rojo)
+                    this.targetColor.setHex(0xEF4444);
+                    this.avatarMouth.scale.set(0.8, 1, 1);
+                    this.avatarEyes[0].rotation.z = -0.15; // Ojos enojados
+                    this.avatarEyes[1].rotation.z = 0.15;
+                } else {
+                    // Estado Neutro (Cyan Estándar)
+                    this.targetColor.setHex(0x00FFFF);
+                    this.avatarMouth.scale.set(1, 1, 1);
+                    this.avatarEyes.forEach(eye => {
+                        eye.scale.set(1, 1, 1);
+                        eye.rotation.z = 0;
+                    });
+                }
+
+                // Cierre/Blink de ojos independiente (Guiños)
+                if (expressions.leftEyeBlink > 0.6 && expressions.rightEyeBlink < 0.3) {
+                    this.avatarEyes[0].scale.y = 0.1; // Cerrar ojo izquierdo
+                }
+                if (expressions.rightEyeBlink > 0.6 && expressions.leftEyeBlink < 0.3) {
+                    this.avatarEyes[1].scale.y = 0.1; // Cerrar ojo derecho
+                }
+
+                // Transición cromática suave
+                this.currentColor.lerp(this.targetColor, 0.08);
+                this.avatarOrb.material.color.copy(this.currentColor);
+                this.avatarOrbit.material.color.copy(this.currentColor);
+                this.avatarMouth.material.color.copy(this.currentColor);
+
+                // Mover partículas
+                if (this.particleSystem) {
+                    this.particleSystem.rotation.y += 0.002;
+                }
+
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        const render = new RenderEngine();
+
+        /* ==========================================
+           3. STREAMING_CHUNK: MOTOR DE EXPRESIONES (MATEMÁTICA Y RED FACIAL)
+           ========================================== */
+        class ExpressionEstimator {
+            constructor() {
+                this.lastExpressionTriggered = 'neutral';
+                this.confidence = 0;
+                this.expressions = {
+                    smile: 0,
+                    jawOpen: 0,
+                    frown: 0,
+                    browRaise: 0,
+                    leftEyeBlink: 0,
+                    rightEyeBlink: 0
+                };
+                this.headOrientation = { yaw: 0, pitch: 0, roll: 0 };
+            }
+
+            // Distancia Euclidiana Euclidiana en espacio 3D
+            distance(p1, p2) {
+                return Math.sqrt(
+                    Math.pow(p1.x - p2.x, 2) +
+                    Math.pow(p1.y - p2.y, 2) +
+                    Math.pow(p1.z - p2.z, 2)
+                );
+            }
+
+            // Algoritmo matemático para clasificar expresiones basados en distancias de Landmarks
+            analyze(landmarks) {
+                if (!landmarks || landmarks.length < 468) return null;
+
+                // Tomamos un factor de escala robusto basado en el ancho interocular (distancia entre esquinas exteriores de ojos)
+                // Esto permite que el sistema funcione igual de bien de lejos o cerca
+                const eyeDist = this.distance(landmarks[33], landmarks[263]);
+
+                // 1. Sonrisa: calculada mediante la distancia del labio izquierdo al derecho
+                const lipWidth = this.distance(landmarks[61], landmarks[291]);
+                this.expressions.smile = Math.max(0, Math.min(1, (lipWidth / eyeDist - 0.70) / 0.25));
+
+                // 2. Apertura de boca (Mandíbula): labio superior interno a inferior interno
+                const innerLipGap = this.distance(landmarks[13], landmarks[14]);
+                this.expressions.jawOpen = Math.max(0, Math.min(1, (innerLipGap / eyeDist - 0.03) / 0.35));
+
+                // 3. Guiños de ojos (Medimos la altura del párpado)
+                const leftEyeHeight = this.distance(landmarks[159], landmarks[145]);
+                const rightEyeHeight = this.distance(landmarks[386], landmarks[374]);
+                
+                // Evaluando ratio parpadeo
+                const baseEyeRatio = 0.09; // Ajuste calibración
+                this.expressions.leftEyeBlink = leftEyeHeight / eyeDist < 0.035 ? 1 : 0;
+                this.expressions.rightEyeBlink = rightEyeHeight / eyeDist < 0.035 ? 1 : 0;
+
+                // 4. Elevación de cejas: Distancia de la ceja al ojo correspondiente
+                const leftBrowDist = this.distance(landmarks[105], landmarks[159]);
+                const rightBrowDist = this.distance(landmarks[334], landmarks[386]);
+                const avgBrowDist = (leftBrowDist + rightBrowDist) / 2;
+                this.expressions.browRaise = Math.max(0, Math.min(1, (avgBrowDist / eyeDist - 0.16) / 0.12));
+
+                // 5. Fruncido de cejas (Enfado/Concentración): distancia de cejas internas
+                const browInnerGap = this.distance(landmarks[21], landmarks[251]);
+                this.expressions.frown = Math.max(0, Math.min(1, (0.26 - (browInnerGap / eyeDist)) / 0.12));
+
+                // 6. Cálculo de orientación de cabeza (Euler Angles simplificados)
+                // Yaw: desviación horizontal de la nariz con respecto a los ojos
+                const nose = landmarks[1];
+                const leftEye = landmarks[33];
+                const rightEye = landmarks[263];
+                const eyeMidPointX = (leftEye.x + rightEye.x) / 2;
+                this.headOrientation.yaw = (nose.x - eyeMidPointX) * 2.5;
+
+                // Pitch: desviación vertical de la nariz
+                const eyeMidPointY = (leftEye.y + rightEye.y) / 2;
+                this.headOrientation.pitch = (nose.y - eyeMidPointY - 0.12) * 2;
+
+                // Roll: inclinación de la cabeza mediante la rotación interocular
+                this.headOrientation.roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
+
+                return this.translateToTranslation();
+            }
+
+            // Traduce los valores matemáticos de las expresiones a textos estructurados
+            translateToTranslation() {
+                let primary = "NEUTRO";
+                let emoji = "😐";
+                let confidence = 95;
+                let desc = "Rostro en estado relajado. Mapeando parámetros biométricos basales...";
+                let audioType = "neutro";
+
+                // En base a thresholds priorizados, clasificamos
+                if (this.expressions.smile > 0.45) {
+                    primary = "ALEGRÍA / SONRISA";
+                    emoji = "😊";
+                    confidence = Math.round(this.expressions.smile * 100);
+                    desc = "La contracción de los músculos cigomáticos indica una alta probabilidad de una emoción positiva, felicidad o empatía social.";
+                    audioType = "alegria";
+                } else if (this.expressions.jawOpen > 0.40) {
+                    primary = "SORPRESA / ASOMBRO";
+                    emoji = "😲";
+                    confidence = Math.round(this.expressions.jawOpen * 100);
+                    desc = "La caída rápida de la mandíbula y ensanchamiento ocular denotan una respuesta fisiológica clásica ante estímulos inesperados.";
+                    audioType = "sorpresa";
+                } else if (this.expressions.frown > 0.45) {
+                    primary = "CONCENTRACIÓN / FRUSTRACIÓN";
+                    emoji = "😠";
+                    confidence = Math.round(this.expressions.frown * 100);
+                    desc = "Cejas aproximadas e inclinadas hacia abajo. Comportamiento asociado con procesos de concentración profunda, desacuerdo, o tensión temporal.";
+                    audioType = "frown";
+                } else if (this.expressions.browRaise > 0.50) {
+                    primary = "CEJAS ELEVADAS";
+                    emoji = "🤨";
+                    confidence = Math.round(this.expressions.browRaise * 100);
+                    desc = "Elevación de los músculos frontales de la frente. Sugiere una actitud inquisitiva, escepticismo o atención enfocada.";
+                } else if (this.expressions.leftEyeBlink > 0.7 && this.expressions.rightEyeBlink < 0.3) {
+                    primary = "GUIÑO IZQUIERDO DETECTADO";
+                    emoji = "😉";
+                    confidence = 99;
+                    desc = "Señal lúdica unilateral de parpadeo. Detectada interacción manual deliberada con el sistema.";
+                } else if (this.expressions.rightEyeBlink > 0.7 && this.expressions.leftEyeBlink < 0.3) {
+                    primary = "GUIÑO DERECHO DETECTADO";
+                    emoji = "😉";
+                    confidence = 99;
+                    desc = "Señal lúdica unilateral de parpadeo. Mapeada calibración ocular asimétrica.";
+                }
+
+                // Registrar cambios de emoción e interactuar con sintetizador
+                if (primary !== this.lastExpressionTriggered) {
+                    this.lastExpressionTriggered = primary;
+                    audio.playExpressionSweep(audioType);
+                    // Efecto de explosión de escala del emoji en el HUD
+                    gsap.fromTo('#trans-emoji', { scale: 0.7, rotation: -10 }, { scale: 1, rotation: 0, duration: 0.4, ease: "back.out" });
+                }
+
+                return {
+                    title: primary,
+                    emoji: emoji,
+                    confidence: confidence,
+                    desc: desc,
+                    raw: this.expressions,
+                    orientation: this.headOrientation
+                };
+            }
+        }
+
+        const tracker = new ExpressionEstimator();
+
+        /* ==========================================
+           4. STREAMING_CHUNK: ORQUESTADOR PRINCIPAL (FLOW MANAGER)
+           ========================================== */
+        class App {
+            constructor() {
+                this.webcam = document.getElementById('webcam');
+                this.btnStart = document.getElementById('btn-start');
+                this.landingScreen = document.getElementById('landing-screen');
+                this.loadingScreen = document.getElementById('loading-screen');
+                this.appContainer = document.getElementById('app-container');
+                this.loadingPercent = document.getElementById('loading-percent');
+                this.loadingBar = document.getElementById('loading-bar');
+                this.loadingStatus = document.getElementById('loading-status');
+                this.loadingLog = document.getElementById('loading-log');
+
+                this.faceMeshMP = null;
+                this.cameraMP = null;
+                this.lastFrameTime = 0;
+                this.frameCount = 0;
+                this.fps = 0;
+            }
+
+            init() {
+                // Evento inicializador
+                this.btnStart.addEventListener('click', () => this.startSecureEngine());
+                
+                // Toggle para prender/apagar máscara
+                document.getElementById('btn-toggle-mesh').addEventListener('click', (e) => {
+                    render.showWireMask = !render.showWireMask;
+                    e.target.innerText = render.showWireMask ? "WIRE MASK: ON" : "WIRE MASK: OFF";
+                    e.target.classList.toggle('text-cyber-cyan');
+                    e.target.classList.toggle('text-slate-500');
+                    audio.playBeep(800, 0.05);
+                });
+            }
+
+            // Iniciar flujo de ejecución
+            async startSecureEngine() {
+                // Iniciar Audio en gesto del usuario para saltarse limitaciones del navegador
+                audio.init();
+                audio.playBootUp();
+
+                // Transición a la carga
+                this.landingScreen.classList.add('hidden');
+                this.loadingScreen.classList.remove('hidden');
+
+                try {
+                    this.updateLoading(10, 'Iniciando periféricos', 'Localizando cámara del dispositivo...');
+                    
+                    // 1. Obtener acceso de cámara
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: 'user',
+                            width: { ideal: 640 },
+                            height: { ideal: 480 }
+                        },
+                        audio: false
+                    });
+                    
+                    this.webcam.srcObject = stream;
+                    await this.webcam.play();
+                    this.updateLoading(40, 'Cámara en línea', 'Inicializando dependencias de MediaPipe...');
+
+                    // 2. Cargar dependencias de Inteligencia Artificial (MediaPipe Face Mesh)
+                    this.faceMeshMP = new FaceMesh({
+                        locateFile: (file) => {
+                            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+                        }
+                    });
+
+                    this.faceMeshMP.setOptions({
+                        maxNumFaces: 1,
+                        refineLandmarks: true,
+                        minDetectionConfidence: 0.5,
+                        minTrackingConfidence: 0.5
+                    });
+
+                    this.faceMeshMP.onResults((results) => this.onMeshResults(results));
+
+                    this.updateLoading(70, 'IA Configurada', 'Abriendo hilo de predicciones WebGL...');
+
+                    // 3. Inicializar Three.js
+                    render.init();
+
+                    // 4. Inicializar bucle de captura de cámara nativo
+                    this.cameraMP = new Camera(this.webcam, {
+                        onFrame: async () => {
+                            await this.faceMeshMP.send({ image: this.webcam });
+                        },
+                        width: 640,
+                        height: 480
+                    });
+
+                    this.updateLoading(90, 'Estableciendo render', 'Hologramas cargados. Abriendo HUD...');
+                    
+                    await this.cameraMP.start();
+
+                    // Finalización de carga y apertura
+                    setTimeout(() => {
+                        this.loadingScreen.classList.add('hidden');
+                        this.appContainer.classList.remove('hidden');
+                        render.onResize();
+                    }, 800);
+
+                } catch (err) {
+                    console.error("Fallo de inicialización de motor WebAR:", err);
+                    this.loadingStatus.innerHTML = "<span class='text-red-500'>ERROR CRÍTICO</span>";
+                    this.loadingLog.innerText = "No se pudo iniciar la cámara. Otorga permisos de acceso e intenta de nuevo.";
+                }
+            }
+
+            // Actualización visual de pantalla de calibración
+            updateLoading(percent, title, subtitle) {
+                this.loadingPercent.innerText = `${percent}%`;
+                this.loadingBar.style.width = `${percent}%`;
+                this.loadingStatus.innerText = title.toUpperCase();
+                this.loadingLog.innerText = subtitle.toUpperCase();
+            }
+
+            // Callback procesado de MediaPipe
+            onMeshResults(results) {
+                const now = performance.now();
+                
+                // Cálculo de FPS del analizador de visión
+                this.frameCount++;
+                if (now - this.lastFrameTime >= 1000) {
+                    this.fps = this.frameCount;
+                    this.frameCount = 0;
+                    this.lastFrameTime = now;
+                    document.getElementById('hud-fps').innerText = this.fps;
+                }
+
+                if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                    const landmarks = results.multiFaceLandmarks[0];
+
+                    // 1. Clasificación Emocional Matemática
+                    const data = tracker.analyze(landmarks);
+                    
+                    if (data) {
+                        // 2. Mapear máscara interactiva 3D
+                        render.updateFaceMesh(landmarks);
+
+                        // 3. Actualizar comportamiento del Robot Asistente 3D
+                        render.updateAvatar(data.raw, data.orientation, now * 0.001);
+
+                        // 4. Actualizar toda la información de la Interfaz HUD
+                        this.updateHUD(data);
                     }
-                });
-            }, 400);
+                } else {
+                    // Estado sin rostro
+                    document.getElementById('core-state').innerText = "BUSCANDO ROSTRO...";
+                    document.getElementById('core-state').className = "text-yellow-500 uppercase animate-pulse";
+                    
+                    // Regresar avatar a posición neutra lentamente
+                    render.updateAvatar({
+                        smile: 0, jawOpen: 0, frown: 0, browRaise: 0, leftEyeBlink: 0, rightEyeBlink: 0
+                    }, { yaw: 0, pitch: 0, roll: 0 }, now * 0.001);
+                }
+            }
 
-            // Reshuffle point indexes dynamically
-            customFacePoints.forEach(p => {
-                p.noiseOffset = Math.random() * 200;
-            });
-            showAlert("Sistema de retícula facial recalibrado correctamente.");
-        });
+            // Sincronizar datos del Translator con el DOM de la Interfaz
+            updateHUD(data) {
+                document.getElementById('core-state').innerText = "TRACKING COMPLETO";
+                document.getElementById('core-state').className = "text-cyber-accent uppercase";
 
-        // Filter button toggles
-        filterButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                playSound('click');
-                filterButtons.forEach(b => {
-                    b.classList.remove('active', 'border-cyan-400/40', 'text-cyan-400', 'border-emerald-500/50', 'text-emerald-400', 'border-purple-500/50', 'text-purple-400', 'border-amber-500/50', 'text-amber-400');
-                    b.classList.add('border-slate-800', 'text-slate-400');
-                });
-
-                currentFilter = btn.dataset.filter;
-                btn.classList.remove('border-slate-800', 'text-slate-400');
+                // Títulos e interpretación
+                document.getElementById('trans-title').innerText = data.title;
+                document.getElementById('trans-emoji').innerText = data.emoji;
+                document.getElementById('trans-desc').innerText = data.desc;
                 
-                // Color customization for matching selected active filter border themes
-                if (currentFilter === 'normal') {
-                    btn.classList.add('active', 'border-cyan-400/40', 'text-cyan-400');
-                } else if (currentFilter === 'matrix') {
-                    btn.classList.add('active', 'border-emerald-500/50', 'text-emerald-400');
-                } else if (currentFilter === 'thermal') {
-                    btn.classList.add('active', 'border-purple-500/50', 'text-purple-400');
-                } else if (currentFilter === 'glitch') {
-                    btn.classList.add('active', 'border-amber-500/50', 'text-amber-400');
+                // Porcentaje de confianza cognitiva
+                document.getElementById('trans-confidence').innerText = `${data.confidence}%`;
+                document.getElementById('trans-confidence-bar').style.width = `${data.confidence}%`;
+
+                // Telemetría cruda en el panel izquierdo (si se muestra)
+                document.getElementById('tel-smile-pct').innerText = `${Math.round(data.raw.smile * 100)}%`;
+                document.getElementById('tel-smile-bar').style.width = `${data.raw.smile * 100}%`;
+
+                document.getElementById('tel-jaw-pct').innerText = `${Math.round(data.raw.jawOpen * 100)}%`;
+                document.getElementById('tel-jaw-bar').style.width = `${data.raw.jawOpen * 100}%`;
+
+                document.getElementById('tel-frown-pct').innerText = `${Math.round(data.raw.frown * 100)}%`;
+                document.getElementById('tel-frown-bar').style.width = `${data.raw.frown * 100}%`;
+
+                document.getElementById('tel-brow-pct').innerText = `${Math.round(data.raw.browRaise * 100)}%`;
+                document.getElementById('tel-brow-bar').style.width = `${data.raw.browRaise * 100}%`;
+
+                // Orientación de la cabeza
+                document.getElementById('tel-yaw').innerText = `${Math.round(data.orientation.yaw * 180 / Math.PI)}°`;
+                document.getElementById('tel-pitch').innerText = `${Math.round(data.orientation.pitch * 180 / Math.PI)}°`;
+
+                // Cambiar el glow de fondo según el tipo de emoción actual
+                const glow = document.getElementById('dynamic-glow');
+                if (data.raw.smile > 0.4) {
+                    glow.style.backgroundColor = '#10B981'; // Verde alegría
+                } else if (data.raw.jawOpen > 0.4) {
+                    glow.style.backgroundColor = '#FF00FF'; // Magenta sorpresa
+                } else if (data.raw.frown > 0.4) {
+                    glow.style.backgroundColor = '#EF4444'; // Rojo enfado
+                } else {
+                    glow.style.backgroundColor = '#00FFFF'; // Cyan por defecto
                 }
-            });
-        });
-
-        // Audio controls
-        btnAudioToggle.addEventListener('click', () => {
-            isAudioMuted = !isAudioMuted;
-            if (isAudioMuted) {
-                audioIcon.innerText = "🔇";
-                btnAudioToggle.classList.add('border-rose-950', 'text-rose-400');
-                btnAudioToggle.classList.remove('text-slate-400');
-                btnAudioToggle.querySelector('span:last-child').innerText = "AUDIO MUTADO";
-            } else {
-                initAudio();
-                audioIcon.innerText = "🔊";
-                btnAudioToggle.classList.remove('border-rose-950', 'text-rose-400');
-                btnAudioToggle.classList.add('text-slate-400');
-                btnAudioToggle.querySelector('span:last-child').innerText = "AUDIO ACTIVO";
-                playSound('click');
             }
+        }
+
+        // Instanciar la app al cargar el DOM de manera segura
+        window.addEventListener('DOMContentLoaded', () => {
+            const system = new App();
+            system.init();
         });
-
-        // Clear scanning history logs
-        btnClearHistory.addEventListener('click', () => {
-            playSound('click');
-            historyList = [];
-            renderHistoryList();
-            showAlert("Historial de bio-espectro eliminado.");
-        });
-
-        // Manual point tracker interactivity (Dragging or tapping coordinates on Canvas to simulate active point recalibration)
-        canvas.addEventListener('click', (e) => {
-            if (isScanning) return;
-            const rect = canvas.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const clickY = e.clientY - rect.top;
-
-            // Find closest custom face node to snap
-            let closestNode = null;
-            let minDist = 35; // Maximum pixel snap distance
-            
-            customFacePoints.forEach(p => {
-                const dist = Math.hypot(p.x - clickX, p.y - clickY);
-                if (dist < minDist) {
-                    minDist = dist;
-                    closestNode = p;
-                }
-            });
-
-            if (closestNode) {
-                playSound('scanning');
-                // Simulate focus nudge on the tapped node
-                closestNode.baseX = clickX / canvas.width;
-                closestNode.baseY = clickY / canvas.height;
-                showAlert(`Nodo recalibrado: [${closestNode.id}]`);
-            } else {
-                // Clicked outside elements, paint a short holographic crosshair focus ripple effect
-                playSound('click');
-            }
-        });
-
     </script>
 </body>
 </html>
