@@ -3,37 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Traductor de Expresiones AR - HUD de Visión Artificial</title>
+    <title>¡Espejo de Emociones Mágico! ✨</title>
     
-    <!-- Tailwind CSS para el diseño futurista de la interfaz -->
+    <!-- Tailwind CSS para diseño moderno -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        cyber: {
-                            bg: '#0b0f19',
-                            dark: '#111827',
-                            panel: 'rgba(30, 41, 59, 0.7)',
-                            cyan: '#00FFFF',
-                            blue: '#00BFFF',
-                            magenta: '#FF00FF',
-                            accent: '#10B981'
+                        magic: {
+                            bg: '#FAF5FF', // Lavanda ultra claro
+                            dark: '#2E1065', // Morado profundo amigable
+                            panel: 'rgba(255, 255, 255, 0.85)', // Glassmorphism claro y tierno
+                            pink: '#FF75B5', // Rosa chicle
+                            purple: '#8B5CF6', // Violeta mágico
+                            yellow: '#FBBF24', // Amarillo feliz
+                            mint: '#34D399', // Verde menta suave
+                            blue: '#38BDF8' // Azul cielo
                         }
                     },
                     fontFamily: {
-                        mono: ['Share Tech Mono', 'monospace', 'Courier New']
+                        friendly: ['Fredoka', 'sans-serif']
                     }
                 }
             }
         }
     </script>
 
-    <!-- Fuentes futuristas de Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Google Fonts con fuente súper amigable y redondeada -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600;700&display=swap" rel="stylesheet">
     
-    <!-- Librerías de Terceros vía CDN con protección de integridad -->
+    <!-- Librerías de Terceros vía CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
@@ -41,250 +42,244 @@
 
     <style>
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0b0f19;
+            font-family: 'Fredoka', sans-serif;
+            background-color: #FAF5FF;
             overflow: hidden;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
-        .font-hud {
-            font-family: 'Share Tech Mono', monospace;
+        
+        /* Efecto de burbujas de fondo */
+        .bubble-bg {
+            background: radial-gradient(circle at 20% 20%, rgba(255, 117, 181, 0.15) 0%, transparent 40%),
+                        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 40%);
         }
-        /* Estilización de barras de scroll HUD */
-        ::-webkit-scrollbar {
-            width: 4px;
+
+        /* Sombras suaves y esponjosas (tipo nube) */
+        .cloud-shadow {
+            box-shadow: 0 15px 30px -10px rgba(139, 92, 246, 0.15);
         }
-        ::-webkit-scrollbar-track {
-            background: rgba(17, 24, 39, 0.5);
+        
+        .bouncy-hover:active {
+            transform: scale(0.92);
         }
-        ::-webkit-scrollbar-thumb {
-            background: #00FFFF;
-            border-radius: 2px;
-        }
-        /* Animaciones Cyberpunk de fondo */
-        @keyframes scanline {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100%); }
-        }
-        .scanline::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to bottom, rgba(0, 255, 255, 0), rgba(0, 255, 255, 0.1) 10%, rgba(0, 255, 255, 0));
-            animation: scanline 6s linear infinite;
-            pointer-events: none;
-        }
-        .neon-glow-cyan {
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
-            border: 1px solid rgba(0, 255, 255, 0.6);
-        }
-        .neon-text-cyan {
-            text-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
-        }
-        /* Estilos de cámara de realidad aumentada */
+        
         #webcam-container {
-            transform: scaleX(-1); /* Espejado para interacción natural */
+            transform: scaleX(-1);
+        }
+
+        /* Animación suave para elementos flotantes */
+        @keyframes gentle-float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(1deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+        .float-cute {
+            animation: gentle-float 4s ease-in-out infinite;
         }
     </style>
 </head>
-<body class="h-full w-full relative select-none">
+<body class="h-full w-full relative select-none bubble-bg">
 
-    <div id="landing-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-between p-6 bg-cyber-bg scanline">
-        <div class="w-full max-w-md flex flex-col items-center text-center mt-12">
-            <!-- Logotipo Cyberpunk -->
+    <!-- SCREEN 1: Bienvenida interactiva y tierna -->
+    <div id="landing-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-between p-6 bg-gradient-to-b from-purple-50 via-pink-50 to-purple-100 overflow-y-auto">
+        
+        <!-- Elementos decorativos animados en las esquinas -->
+        <div class="absolute top-10 left-10 text-4xl float-cute" style="animation-delay: 0s;">✨</div>
+        <div class="absolute top-20 right-12 text-3xl float-cute" style="animation-delay: 1.5s;">🎈</div>
+        <div class="absolute bottom-24 left-8 text-3xl float-cute" style="animation-delay: 0.7s;">🌸</div>
+        
+        <div class="w-full max-w-md flex flex-col items-center text-center mt-8">
+            <!-- Icono de Mascota de Bienvenida -->
             <div class="relative mb-6">
-                <div class="w-24 h-24 rounded-full border-2 border-cyber-cyan flex items-center justify-center neon-glow-cyan animate-pulse">
-                    <span class="text-4xl text-cyber-cyan font-hud">AR</span>
+                <div class="w-28 h-28 rounded-full bg-gradient-to-tr from-magic-pink to-magic-purple flex items-center justify-center cloud-shadow border-4 border-white animate-bounce" style="animation-duration: 2.5s;">
+                    <span class="text-5xl">🥰</span>
                 </div>
-                <div class="absolute -bottom-2 bg-cyber-cyan text-cyber-bg font-hud font-bold px-2 py-0.5 text-xs rounded uppercase tracking-widest">
-                    v1.0.4
+                <div class="absolute -bottom-1 bg-magic-yellow text-magic-dark font-bold px-3 py-1 text-xs rounded-full border-2 border-white tracking-wider">
+                    ¡HOLA! ✨
                 </div>
             </div>
 
-            <h1 class="text-3xl font-extrabold text-white tracking-wider font-hud uppercase">
-                Visión Artificial <span class="text-cyber-cyan block">Traductor Facial</span>
+            <h1 class="text-3xl font-extrabold text-magic-dark leading-tight">
+                Espejo Mágico <br><span class="text-magic-pink text-4xl">de Emociones</span>
             </h1>
-            <p class="text-slate-400 text-sm mt-3 px-4 max-w-sm">
-                Analizador biométrico en tiempo real. Utiliza WebAR para mapear expresiones micro-faciales, proyectar interfaces cibernéticas y sincronizar un avatar flotante.
+            <p class="text-slate-600 text-sm mt-3 px-6 max-w-sm font-medium">
+                ¡Descubre qué dice tu rostro hoy! Activa la cámara para que tu nuevo amiguito de gelatina imite tus expresiones y sonrisas. 🎉
             </p>
         </div>
 
-        <!-- Panel de Requisitos e Instrucciones -->
-        <div class="w-full max-w-md bg-cyber-panel backdrop-blur-md rounded-xl p-5 border border-slate-700/60 font-hud text-xs text-slate-300 space-y-3">
-            <div class="flex items-center space-x-2 text-cyber-cyan font-bold uppercase border-b border-slate-700 pb-2">
-                <span>[ PROTOCOLOS DE ACCESO ]</span>
+        <!-- Caja de Compromiso de Seguridad e Instrucción -->
+        <div class="w-full max-w-md bg-white/80 backdrop-blur-md rounded-2xl p-5 border-2 border-purple-100 text-sm text-slate-700 space-y-3 cloud-shadow">
+            <div class="flex items-center space-x-2 text-magic-purple font-bold border-b border-purple-100 pb-2">
+                <span>🌈 ¿CÓMO JUGAR?</span>
             </div>
-            <div class="flex items-start space-x-2">
-                <span class="text-cyber-cyan">❯</span>
-                <p>Se requiere acceso a la cámara frontal para el Face Tracking interactivo.</p>
+            <div class="flex items-start space-x-2 text-xs font-medium">
+                <span class="text-magic-pink text-base leading-none">⭐</span>
+                <p>Necesitamos permiso de tu cámara para ver tus hermosos gestos.</p>
             </div>
-            <div class="flex items-start space-x-2">
-                <span class="text-cyber-cyan">❯</span>
-                <p>El procesamiento de redes neuronales se realiza localmente y protege tu privacidad.</p>
+            <div class="flex items-start space-x-2 text-xs font-medium">
+                <span class="text-magic-pink text-base leading-none">⭐</span>
+                <p>Tu privacidad está a salvo: todo se procesa aquí mismo en tu móvil.</p>
             </div>
-            <div class="flex items-start space-x-2">
-                <span class="text-cyber-cyan">❯</span>
-                <p>Sintetizador de audio interactivo integrado. Sube el volumen de tu dispositivo.</p>
+            <div class="flex items-start space-x-2 text-xs font-medium">
+                <span class="text-magic-pink text-base leading-none">⭐</span>
+                <p>¡Sube el volumen para escuchar los tiernos sonidos mágicos!</p>
             </div>
         </div>
 
         <!-- Botones de Acción -->
-        <div class="w-full max-w-md mb-12 flex flex-col items-center">
-            <button id="btn-start" class="w-full bg-gradient-to-r from-cyber-cyan to-cyber-blue text-cyber-bg font-hud font-extrabold text-lg py-4 px-8 rounded-lg shadow-lg transform active:scale-95 transition-all duration-200 tracking-wider uppercase neon-glow-cyan">
-                Iniciar Cámara e IA
+        <div class="w-full max-w-md mb-8 flex flex-col items-center">
+            <button id="btn-start" class="w-full bg-gradient-to-r from-magic-pink to-magic-purple text-white font-bold text-xl py-4 px-8 rounded-full shadow-lg hover:shadow-pink-300/50 transform hover:scale-105 active:scale-95 transition-all duration-200 tracking-wide bouncy-hover border-b-4 border-purple-700">
+                ¡Encender Cámara! 📸
             </button>
-            <p class="text-slate-500 text-[10px] mt-3 uppercase tracking-wider text-center">
-                Compatible con Safari (iOS), Chrome y Edge (Android)
+            <p class="text-slate-400 text-[11px] mt-3 font-semibold tracking-wider text-center uppercase">
+                ¡Fácil, divertido y 100% seguro!
             </p>
         </div>
     </div>
 
-    <div id="loading-screen" class="hidden absolute inset-0 z-40 flex flex-col items-center justify-center bg-cyber-bg p-6">
+    <!-- SCREEN 2: Pantalla de Carga Cariñosa -->
+    <div id="loading-screen" class="hidden absolute inset-0 z-40 flex flex-col items-center justify-center bg-gradient-to-tr from-purple-100 to-pink-100 p-6">
         <div class="relative w-36 h-36 flex items-center justify-center">
-            <!-- Anillos rotatorios futuristas -->
-            <div class="absolute w-full h-full rounded-full border-4 border-slate-800 border-t-cyber-cyan animate-spin"></div>
-            <div class="absolute w-4/5 h-4/5 rounded-full border-4 border-slate-800 border-b-cyber-magenta animate-spin" style="animation-direction: reverse; animation-duration: 2s;"></div>
-            <span class="text-cyber-cyan font-hud text-lg font-bold tracking-widest animate-pulse" id="loading-percent">0%</span>
+            <!-- Anillos suaves de colores rotatorios -->
+            <div class="absolute w-full h-full rounded-full border-4 border-white/40 border-t-magic-pink animate-spin"></div>
+            <div class="absolute w-4/5 h-4/5 rounded-full border-4 border-white/40 border-b-magic-yellow animate-spin" style="animation-direction: reverse; animation-duration: 2s;"></div>
+            <span class="text-magic-dark text-2xl font-bold animate-pulse" id="loading-percent">0%</span>
         </div>
         <div class="mt-8 text-center max-w-sm">
-            <h2 id="loading-status" class="text-cyber-cyan font-hud text-sm font-bold uppercase tracking-widest">Iniciando módulos...</h2>
-            <div class="w-64 bg-slate-800 h-1 rounded-full mt-3 overflow-hidden mx-auto">
-                <div id="loading-bar" class="h-full bg-cyber-cyan transition-all duration-300" style="width: 0%"></div>
+            <h2 id="loading-status" class="text-magic-purple text-lg font-bold">Invocando a tu amiguito...</h2>
+            <div class="w-60 bg-white/80 h-3 rounded-full mt-3 overflow-hidden mx-auto p-0.5 border border-purple-200 shadow-inner">
+                <div id="loading-bar" class="h-full bg-gradient-to-r from-magic-pink to-magic-yellow rounded-full transition-all duration-300" style="width: 0%"></div>
             </div>
-            <p id="loading-log" class="text-slate-500 font-hud text-[10px] mt-2 h-4 overflow-hidden truncate uppercase"></p>
+            <p id="loading-log" class="text-slate-500 text-xs font-semibold mt-2 h-4 overflow-hidden truncate uppercase"></p>
         </div>
     </div>
 
+    <!-- SCREEN 3: Aplicación Principal -->
     <main id="app-container" class="hidden h-full w-full relative">
 
-        <!-- Contenedores de Video y Renderizado WebGL (Apilados) -->
-        <div class="absolute inset-0 z-0 overflow-hidden bg-black">
-            <!-- Cámara Web oculta/espejada -->
+        <!-- Contenedores de Video y Renderizado WebGL -->
+        <div class="absolute inset-0 z-0 overflow-hidden bg-purple-50">
+            <!-- Cámara oculta que procesará MediaPipe -->
             <video id="webcam" class="absolute object-cover w-full h-full hidden" autoplay playsinline muted></video>
-            <!-- Canvas de Procesamiento de MediaPipe y Render 3D de Three.js -->
+            <!-- Canvas principal para AR (Fondo espejo con render 3D) -->
             <canvas id="ar-canvas" class="absolute top-0 left-0 w-full h-full object-cover"></canvas>
         </div>
 
-        <!-- HUD: Capa de Interfaz y Paneles Semitransparentes -->
+        <!-- Capa del HUD Interactiva -->
         <div class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
 
-            <!-- HUD Header: Información de Red y Rendimiento -->
+            <!-- Cabecera amigable -->
             <header class="w-full flex justify-between items-center pointer-events-auto">
-                <div class="bg-cyber-panel backdrop-blur-md border border-slate-700/50 rounded-lg px-4 py-2 flex items-center space-x-3 text-white font-hud text-xs">
+                <div class="bg-magic-panel backdrop-blur-md border border-white/60 rounded-full px-4 py-1.5 flex items-center space-x-3 text-magic-dark text-xs shadow-md">
                     <div class="flex items-center space-x-1.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-cyber-cyan animate-ping"></span>
-                        <span class="w-2.5 h-2.5 rounded-full bg-cyber-cyan absolute"></span>
-                        <span class="font-bold text-cyber-cyan">SECURE LINK</span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-magic-mint animate-ping"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-magic-mint absolute"></span>
+                        <span class="font-bold text-magic-purple">MÁGICO ACTIVE</span>
                     </div>
-                    <span class="text-slate-500">|</span>
-                    <div>FPS: <span id="hud-fps" class="text-cyber-accent">--</span></div>
-                    <span class="text-slate-500">|</span>
-                    <button id="btn-toggle-mesh" class="text-cyber-cyan bg-slate-800 hover:bg-slate-700 px-2 py-0.5 rounded transition">
-                        WIRE MASK: ON
+                    <span class="text-slate-300">|</span>
+                    <button id="btn-toggle-mesh" class="text-magic-pink font-bold bg-white/90 hover:bg-white px-3 py-1 rounded-full border border-pink-100 shadow-sm transition">
+                        Filtro: Brillantinas ✨
                     </button>
                 </div>
 
-                <div class="bg-cyber-panel backdrop-blur-md border border-slate-700/50 rounded-lg px-3 py-2 text-white font-hud text-xs flex space-x-2">
-                    <span class="text-slate-400">CORE STATUS:</span>
-                    <span class="text-cyber-accent uppercase animate-pulse" id="core-state">ONLINE</span>
+                <div class="bg-magic-panel backdrop-blur-md border border-white/60 rounded-full px-4 py-2 text-magic-dark text-xs font-bold shadow-md">
+                    FPS: <span id="hud-fps" class="text-magic-purple">--</span>
                 </div>
             </header>
 
-            <!-- HUD de Telemetría Izquierda (Parámetros Faciales Crudos) -->
+            <!-- Telemetría Amigable (Panel de gestos izquierdo - Oculto en móviles pequeños para liberar espacio) -->
             <section class="hidden md:flex flex-col space-y-2 max-w-[240px] pointer-events-auto self-start">
-                <div class="bg-cyber-panel backdrop-blur-md border border-slate-700/50 rounded-xl p-4 font-hud text-xs text-white">
-                    <h3 class="text-cyber-cyan font-bold uppercase mb-3 border-b border-slate-700 pb-1 flex justify-between">
-                        <span>Biometría Cruda</span>
-                        <span class="text-slate-400 animate-pulse">●</span>
+                <div class="bg-magic-panel backdrop-blur-md border border-white/60 rounded-3xl p-5 text-magic-dark shadow-md">
+                    <h3 class="text-magic-purple font-bold text-sm mb-3 border-b border-purple-100 pb-1.5 flex justify-between items-center">
+                        <span>Mis Gestos ✨</span>
+                        <span class="text-lg">🍭</span>
                     </h3>
-                    <div class="space-y-2" id="telemetry-values">
+                    <div class="space-y-3 text-xs" id="telemetry-values">
                         <div>
-                            <div class="flex justify-between text-[10px] text-slate-400">
-                                <span>SONRISA (SMILE)</span>
+                            <div class="flex justify-between text-slate-600 font-semibold mb-1">
+                                <span>Sonrisa Mágica 💛</span>
                                 <span id="tel-smile-pct">0%</span>
                             </div>
-                            <div class="w-full bg-slate-800 h-1 rounded overflow-hidden">
-                                <div id="tel-smile-bar" class="h-full bg-cyber-cyan" style="width: 0%"></div>
+                            <div class="w-full bg-slate-100 h-2.5 rounded-full p-0.5 border border-slate-200/50">
+                                <div id="tel-smile-bar" class="h-full bg-magic-yellow rounded-full" style="width: 0%"></div>
                             </div>
                         </div>
                         <div>
-                            <div class="flex justify-between text-[10px] text-slate-400">
-                                <span>APERTURA BOCA (JAW)</span>
+                            <div class="flex justify-between text-slate-600 font-semibold mb-1">
+                                <span>Boca Sorprendida 😮</span>
                                 <span id="tel-jaw-pct">0%</span>
                             </div>
-                            <div class="w-full bg-slate-800 h-1 rounded overflow-hidden">
-                                <div id="tel-jaw-bar" class="h-full bg-cyber-blue" style="width: 0%"></div>
+                            <div class="w-full bg-slate-100 h-2.5 rounded-full p-0.5 border border-slate-200/50">
+                                <div id="tel-jaw-bar" class="h-full bg-magic-blue rounded-full" style="width: 0%"></div>
                             </div>
                         </div>
                         <div>
-                            <div class="flex justify-between text-[10px] text-slate-400">
-                                <span>FRUNCIDO (FROWN)</span>
+                            <div class="flex justify-between text-slate-600 font-semibold mb-1">
+                                <span>Concentración / Enfadado 😠</span>
                                 <span id="tel-frown-pct">0%</span>
                             </div>
-                            <div class="w-full bg-slate-800 h-1 rounded overflow-hidden">
-                                <div id="tel-frown-bar" class="h-full bg-cyber-magenta" style="width: 0%"></div>
+                            <div class="w-full bg-slate-100 h-2.5 rounded-full p-0.5 border border-slate-200/50">
+                                <div id="tel-frown-bar" class="h-full bg-magic-pink rounded-full" style="width: 0%"></div>
                             </div>
                         </div>
                         <div>
-                            <div class="flex justify-between text-[10px] text-slate-400">
-                                <span>ELEVACIÓN CEJAS</span>
+                            <div class="flex justify-between text-slate-600 font-semibold mb-1">
+                                <span>Cejas arriba 🚀</span>
                                 <span id="tel-brow-pct">0%</span>
                             </div>
-                            <div class="w-full bg-slate-800 h-1 rounded overflow-hidden">
-                                <div id="tel-brow-bar" class="h-full bg-cyber-accent" style="width: 0%"></div>
+                            <div class="w-full bg-slate-100 h-2.5 rounded-full p-0.5 border border-slate-200/50">
+                                <div id="tel-brow-bar" class="h-full bg-magic-mint rounded-full" style="width: 0%"></div>
                             </div>
-                        </div>
-                        <div class="pt-2 text-[9px] text-slate-500 border-t border-slate-800 mt-2">
-                            YAW: <span id="tel-yaw">0°</span> | PITCH: <span id="tel-pitch">0°</span>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- HUD de Análisis Emocional Flotante (Principal en Móviles y Escritorio) -->
-            <footer class="w-full max-w-md mx-auto pointer-events-auto flex flex-col space-y-4">
+            <!-- Panel de Análisis Emocional Flotante (Principal inferior) -->
+            <footer class="w-full max-w-md mx-auto pointer-events-auto flex flex-col space-y-3">
                 
-                <!-- Notificación rápida de consejos de interacción -->
-                <div class="bg-gradient-to-r from-cyber-cyan/10 to-transparent border-l-4 border-cyber-cyan px-4 py-2 rounded text-xs text-slate-200 font-hud">
-                    <span class="text-cyber-cyan font-bold">INFO:</span> <span id="hud-tips">Guiña un ojo, sonríe o inclina la cabeza para interactuar con la IA.</span>
+                <!-- Burbuja de consejos tiernos -->
+                <div class="bg-white/90 backdrop-blur-md border-2 border-pink-100 px-4 py-2 rounded-2xl shadow-sm text-xs text-slate-700 flex items-center space-x-2">
+                    <span class="text-base">💡</span>
+                    <span id="hud-tips" class="font-medium">¡Guiña un ojito, sonríe en grande o abre la boca para divertirte!</span>
                 </div>
 
-                <!-- Panel Semitransparente Principal -->
-                <div class="bg-cyber-panel backdrop-blur-lg border border-slate-700/60 rounded-xl p-5 text-white shadow-2xl relative overflow-hidden">
-                    <!-- Glow Dinámico de Fondo que cambia según la emoción -->
-                    <div id="dynamic-glow" class="absolute -right-16 -bottom-16 w-32 h-32 rounded-full bg-cyber-cyan/20 blur-3xl transition-all duration-500"></div>
+                <!-- Tarjeta Principal de Expresión -->
+                <div class="bg-magic-panel backdrop-blur-lg border-2 border-white rounded-3xl p-5 text-magic-dark shadow-xl relative overflow-hidden">
+                    <!-- Glow Dinámico de Fondo con colores pasteles -->
+                    <div id="dynamic-glow" class="absolute -right-16 -bottom-16 w-36 h-36 rounded-full bg-magic-pink/20 blur-2xl transition-all duration-700"></div>
 
-                    <!-- Cabecera de Traducción -->
-                    <div class="flex justify-between items-start mb-4 relative z-10">
+                    <!-- Cabecera de la emoción traducida -->
+                    <div class="flex justify-between items-start mb-3 relative z-10">
                         <div>
-                            <span class="text-xs font-hud text-cyber-cyan uppercase tracking-widest">[ TRADUCCIÓN FACIAL ]</span>
-                            <h2 class="text-2xl font-bold font-hud tracking-wide" id="trans-title">Calibrando rostro...</h2>
+                            <span class="text-xs font-bold text-magic-purple uppercase tracking-wider">🌟 TRADUCTOR DE CARITAS 🌟</span>
+                            <h2 class="text-2xl font-bold tracking-tight text-magic-dark mt-0.5" id="trans-title">¡Calibrando tu rostro!</h2>
                         </div>
-                        <div class="w-14 h-14 bg-slate-800/80 rounded-xl flex items-center justify-center text-3xl border border-slate-700" id="trans-emoji">
-                            🤖
+                        <div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-4xl border-2 border-purple-100 shadow-md transform -rotate-3" id="trans-emoji">
+                            🧸
                         </div>
                     </div>
 
-                    <!-- Barra de Confianza de Lectura -->
+                    <!-- Nivel de fuerza/confianza de la carita -->
                     <div class="mb-4 relative z-10">
-                        <div class="flex justify-between font-hud text-xs text-slate-400 mb-1">
-                            <span>NIVEL DE CONFIANZA COGNITIVA</span>
-                            <span id="trans-confidence" class="text-cyber-cyan">0%</span>
+                        <div class="flex justify-between text-xs text-slate-600 font-bold mb-1">
+                            <span>¡FUERZA DEL GESTO!</span>
+                            <span id="trans-confidence" class="text-magic-pink">0%</span>
                         </div>
-                        <div class="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden border border-slate-700">
-                            <div id="trans-confidence-bar" class="h-full bg-gradient-to-r from-cyber-blue to-cyber-cyan transition-all duration-300" style="width: 0%"></div>
+                        <div class="w-full bg-slate-100 h-3 rounded-full p-0.5 border border-slate-200/50 shadow-inner">
+                            <div id="trans-confidence-bar" class="h-full bg-gradient-to-r from-magic-purple to-magic-pink rounded-full transition-all duration-300" style="width: 0%"></div>
                         </div>
                     </div>
 
-                    <!-- Interpretación Teórica -->
-                    <div class="bg-cyber-dark/60 rounded-lg p-3.5 border border-slate-800 relative z-10">
-                        <p class="text-xs text-slate-400 uppercase font-hud mb-1 tracking-wider">[ INTERPRETACIÓN ESTIMADA ]</p>
-                        <p class="text-sm text-slate-200" id="trans-desc">Sitúate frente a la cámara y asegura una buena iluminación. El sistema buscará tu firma geométrica facial.</p>
+                    <!-- Interpretación Super Divertida -->
+                    <div class="bg-white/85 rounded-2xl p-4 border border-purple-100/50 relative z-10 shadow-sm">
+                        <p class="text-xs text-magic-purple font-bold uppercase tracking-wider mb-1">🍭 LO QUE DICE TU CARITA:</p>
+                        <p class="text-sm text-slate-700 font-medium leading-relaxed" id="trans-desc">Ubícate frente a la cámara con una gran iluminación. ¡A tu amiguito virtual le encantará conocerte!</p>
                     </div>
 
-                    <!-- Disclaimer -->
-                    <p class="text-[9px] text-slate-500 font-hud text-center mt-3 uppercase tracking-wider">
-                        Lectura de telemetría experimental. No representa un diagnóstico emocional o psicológico.
+                    <p class="text-[9px] text-slate-400 font-bold text-center mt-3 uppercase tracking-wider">
+                        Lectura de caritas súper divertida. ¡Es una estimación juguetona, no un diagnóstico real!
                     </p>
                 </div>
             </footer>
@@ -293,7 +288,7 @@
 
     <script>
         /* ==========================================
-           1. CLASE SINTETIZADORA DE SONIDO (AUDIO WEB NATIVO)
+           1. CLASE SINTETIZADORA DE SONIDO (AUDIO WEB RETRO JUGUETÓN)
            ========================================== */
         class AudioSynth {
             constructor() {
@@ -304,11 +299,10 @@
 
             init() {
                 if (this.ctx) return;
-                // Inicialización segura del contexto de Audio
                 const AudioCtx = window.AudioContext || window.webkitAudioContext;
                 this.ctx = new AudioCtx();
                 this.masterVolume = this.ctx.createGain();
-                this.masterVolume.gain.setValueAtTime(0.1, this.ctx.currentTime); // Volumen general calibrado a 10%
+                this.masterVolume.gain.setValueAtTime(0.08, this.ctx.currentTime); // Volumen amigable y suave
                 this.masterVolume.connect(this.ctx.destination);
             }
 
@@ -318,18 +312,20 @@
                 }
             }
 
-            // Reproduce un bip tecnológico rápido
-            playBeep(freq = 600, duration = 0.08, type = 'sine') {
+            // Un sonido tierno similar a una burbuja o un salto
+            playPop(freq = 523, duration = 0.15) {
                 if (!this.ctx) return;
                 this.resume();
 
                 const osc = this.ctx.createOscillator();
                 const gainNode = this.ctx.createGain();
 
-                osc.type = type;
+                osc.type = 'triangle'; // Sonido suave 8-bit
                 osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                // Efecto de pitch descendente/ascendente rápido para sonido juguetón
+                osc.frequency.exponentialRampToValueAtTime(freq * 1.8, this.ctx.currentTime + duration);
 
-                gainNode.gain.setValueAtTime(0.08, this.ctx.currentTime);
+                gainNode.gain.setValueAtTime(0.06, this.ctx.currentTime);
                 gainNode.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
 
                 osc.connect(gainNode);
@@ -339,69 +335,72 @@
                 osc.stop(this.ctx.currentTime + duration);
             }
 
-            // Reproduce un barrido de inicialización de sistemas
-            playBootUp() {
+            // Melodía mágica de inicio
+            playWelcomeChime() {
                 if (!this.ctx) return;
                 this.resume();
-                const now = this.ctx.currentTime;
                 
-                // Arpegio ascendente futurista
-                const notes = [300, 450, 600, 900];
+                // Arpegio de fantasía (Acorde de Do mayor con séptima)
+                const notes = [523.25, 659.25, 783.99, 987.77, 1046.50];
                 notes.forEach((f, index) => {
                     setTimeout(() => {
-                        this.playBeep(f, 0.15, 'triangle');
-                    }, index * 100);
+                        this.playPop(f, 0.2);
+                    }, index * 80);
                 });
             }
 
-            // Sonidos interactivos adaptados al estado emocional
-            playExpressionSweep(type) {
+            // Reaccionar según el tipo de emoción
+            playCuteReaction(type) {
                 if (!this.ctx) return;
                 this.resume();
                 
                 const now = this.ctx.currentTime;
-                if (now - this.lastToneTime < 1.0) return; // Limitar sonidos constantes (anti-spam)
+                if (now - this.lastToneTime < 1.0) return; // Anti-spam de sonidos
                 this.lastToneTime = now;
 
-                const osc = this.ctx.createOscillator();
-                const gainNode = this.ctx.createGain();
-                osc.connect(gainNode);
-                gainNode.connect(this.masterVolume);
-
-                gainNode.gain.setValueAtTime(0.05, now);
-                gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
-
                 if (type === 'alegria') {
-                    // Tono alegre ascendente
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(440, now);
-                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.5);
+                    // Chime súper feliz ascendente
+                    const notes = [587.33, 698.46, 880.00, 1046.50];
+                    notes.forEach((f, index) => {
+                        setTimeout(() => this.playPop(f, 0.15), index * 60);
+                    });
                 } else if (type === 'sorpresa') {
-                    // Barrido rápido y agudo
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(300, now);
-                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.3);
-                } else if (type === 'frown') {
-                    // Sonido grave
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(180, now);
-                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.5);
-                } else {
-                    // Neutro o sutil
+                    // Sonido deslizante hacia arriba rápido
+                    const osc = this.ctx.createOscillator();
+                    const gainNode = this.ctx.createGain();
                     osc.type = 'sine';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(1500, now + 0.25);
+                    gainNode.gain.setValueAtTime(0.05, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+                    osc.connect(gainNode);
+                    gainNode.connect(this.masterVolume);
+                    osc.start();
+                    osc.stop(now + 0.25);
+                } else if (type === 'frown') {
+                    // Sonido cómico descendente "boing"
+                    const osc = this.ctx.createOscillator();
+                    const gainNode = this.ctx.createGain();
+                    osc.type = 'triangle';
                     osc.frequency.setValueAtTime(350, now);
-                    osc.frequency.exponentialRampToValueAtTime(450, now + 0.4);
+                    osc.frequency.exponentialRampToValueAtTime(120, now + 0.35);
+                    gainNode.gain.setValueAtTime(0.06, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+                    osc.connect(gainNode);
+                    gainNode.connect(this.masterVolume);
+                    osc.start();
+                    osc.stop(now + 0.35);
+                } else {
+                    // Neutro suave
+                    this.playPop(440, 0.12);
                 }
-
-                osc.start();
-                osc.stop(now + 0.6);
             }
         }
 
         const audio = new AudioSynth();
 
         /* ==========================================
-           2. STREAMING_CHUNK: MOTOR 3D (THREE.JS AVATAR & WIRE MASK)
+           2. STREAMING_CHUNK: MOTOR 3D RE-IMAGINADO (MASCOTA TIERNA "BLOB BUDDY")
            ========================================== */
         class RenderEngine {
             constructor() {
@@ -410,58 +409,61 @@
                 this.camera = null;
                 this.renderer = null;
                 
-                this.avatarGroup = null; // Grupo del avatar flotante
-                this.faceGeometry = null; // Geometría de la máscara proyectada
-                this.faceMesh = null; // Objeto malla de la máscara facial
+                this.avatarGroup = null; // Grupo del avatar de la mascota
+                this.faceGeometry = null; // Geometría de las brillantinas de la cara
+                this.facePoints = null; // Partículas estelares en el rostro
                 this.showWireMask = true;
 
-                this.particleSystem = null;
-                this.avatarEyes = [];
-                this.avatarMouth = null;
-                this.avatarOrbit = null;
-                this.avatarOrb = null;
+                this.sparkleSystem = null;
                 
-                // Coloración del avatar
-                this.currentColor = new THREE.Color('#00FFFF');
-                this.targetColor = new THREE.Color('#00FFFF');
+                // Componentes de nuestra mascota Blob Buddy
+                this.blobBody = null;
+                this.blobEyes = [];
+                this.blobPupils = [];
+                this.blobMouth = null;
+                this.blobBlushes = [];
+                this.antennaStar = null;
+                
+                // Colores tiernos
+                this.colorJoy = new THREE.Color('#FF75B5'); // Rosa chicle
+                this.colorSurprise = new THREE.Color('#FBBF24'); // Amarillo brillante
+                this.colorAngry = new THREE.Color('#8B5CF6'); // Morado travieso
+                this.colorNormal = new THREE.Color('#FF92C5'); // Rosa pastel base
+                this.currentColor = new THREE.Color('#FF92C5');
             }
 
             init() {
-                // Configurar escena de Three.js
                 this.scene = new THREE.Scene();
 
-                // Cámara con perspectiva móvil óptima
                 this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
                 this.camera.position.set(0, 0, 5);
 
-                // Renderizador WebGL optimizado
                 this.renderer = new THREE.WebGLRenderer({
                     canvas: this.canvas,
-                    alpha: true, // Fondo transparente para sobreponerse al video
+                    alpha: true, // Para superponer el video
                     antialias: true,
                     powerPreference: "high-performance"
                 });
                 this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
 
-                // Configuración de Luces
-                const ambientLight = new THREE.AmbientLight(0x0f172a, 1.5);
+                // Configurar Iluminación Amigable e Intensa (Cartoon-like)
+                const ambientLight = new THREE.AmbientLight(0xffffff, 1.8);
                 this.scene.add(ambientLight);
 
-                const dirLight = new THREE.DirectionalLight(0x00FFFF, 2.5);
-                dirLight.position.set(0, 5, 5);
+                const dirLight = new THREE.DirectionalLight(0xffe4e6, 1.2);
+                dirLight.position.set(0, 4, 3);
                 this.scene.add(dirLight);
 
-                const pointLight = new THREE.PointLight(0xFF00FF, 3, 15);
-                pointLight.position.set(0, -1, 3);
+                const pointLight = new THREE.PointLight(0xffffff, 2, 8);
+                pointLight.position.set(0, 0, 2);
                 this.scene.add(pointLight);
 
-                // Crear los dos componentes principales: Avatar y Máscara Proyectada
-                this.createHolographicAvatar();
-                this.createFaceMaskGeometry();
-                this.createParticles();
+                // Crear los componentes divertidos
+                this.createCuteMascot();
+                this.createMagicPointsGeometry();
+                this.createSparkles();
 
-                // Eventos de redimensionamiento
                 window.addEventListener('resize', () => this.onResize());
             }
 
@@ -474,207 +476,250 @@
                 this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             }
 
-            // Crear el Asistente Robótico Flotante en 3D
-            createHolographicAvatar() {
+            createCuteMascot() {
                 this.avatarGroup = new THREE.Group();
-                // Lo posicionamos inicialmente a la derecha para diseño responsivo
-                this.avatarGroup.position.set(1.4, 0.8, 1);
-                this.avatarGroup.scale.set(0.6, 0.6, 0.6);
+                this.avatarGroup.position.set(1.4, 0.6, 1);
+                this.avatarGroup.scale.set(0.65, 0.65, 0.65);
                 this.scene.add(this.avatarGroup);
 
-                // 1. Núcleo central luminoso
-                const coreGeo = new THREE.SphereGeometry(0.5, 32, 32);
-                const coreMat = new THREE.MeshPhongMaterial({
-                    color: 0x00FFFF,
-                    emissive: 0x009999,
-                    shininess: 100,
+                // 1. Cuerpo principal: Una bola suave y redondeada (Blob)
+                const bodyGeo = new THREE.SphereGeometry(0.55, 32, 32);
+                const bodyMat = new THREE.MeshPhongMaterial({
+                    color: 0xFF92C5,
+                    shininess: 80,
+                    flatShading: false,
                     transparent: true,
-                    opacity: 0.85
+                    opacity: 0.95
                 });
-                this.avatarOrb = new THREE.Mesh(coreGeo, coreMat);
-                this.avatarGroup.add(this.avatarOrb);
+                this.blobBody = new THREE.Mesh(bodyGeo, bodyMat);
+                this.avatarGroup.add(this.blobBody);
 
-                // 2. Anillo orbital cibernético
-                const torusGeo = new THREE.TorusGeometry(0.8, 0.04, 8, 64);
-                const ringMat = new THREE.MeshBasicMaterial({
-                    color: 0x00FFFF,
-                    wireframe: true,
+                // 2. Ojos de caricatura muy grandes y expresivos
+                const eyeGeo = new THREE.SphereGeometry(0.12, 24, 24);
+                const eyeMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+                const pupilGeo = new THREE.SphereGeometry(0.065, 16, 16);
+                const pupilMat = new THREE.MeshBasicMaterial({ color: 0x2E1065 }); // Morado súper oscuro
+
+                // Ojo Izquierdo
+                const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+                leftEye.position.set(-0.16, 0.12, 0.44);
+                const leftPupil = new THREE.Mesh(pupilGeo, pupilMat);
+                leftPupil.position.set(-0.16, 0.12, 0.54);
+                this.avatarGroup.add(leftEye, leftPupil);
+                this.blobEyes.push(leftEye);
+                this.blobPupils.push(leftPupil);
+
+                // Ojo Derecho
+                const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+                rightEye.position.set(0.16, 0.12, 0.44);
+                const rightPupil = new THREE.Mesh(pupilGeo, pupilMat);
+                rightPupil.position.set(0.16, 0.12, 0.54);
+                this.avatarGroup.add(rightEye, rightPupil);
+                this.blobEyes.push(rightEye);
+                this.blobPupils.push(rightPupil);
+
+                // 3. Mejillas rosadas que brillan de vergüenza/alegría
+                const blushGeo = new THREE.SphereGeometry(0.06, 16, 16);
+                const blushMat = new THREE.MeshBasicMaterial({
+                    color: 0xFF5197,
                     transparent: true,
                     opacity: 0.6
                 });
-                this.avatarOrbit = new THREE.Mesh(torusGeo, ringMat);
-                this.avatarOrbit.rotation.x = Math.PI / 3;
-                this.avatarGroup.add(this.avatarOrbit);
+                const leftBlush = new THREE.Mesh(blushGeo, blushMat);
+                leftBlush.position.set(-0.32, -0.04, 0.4);
+                const rightBlush = new THREE.Mesh(blushGeo, blushMat);
+                rightBlush.position.set(0.32, -0.04, 0.4);
+                this.avatarGroup.add(leftBlush, rightBlush);
+                this.blobBlushes.push(leftBlush, rightBlush);
 
-                // 3. Ojos del robot (Digitales)
-                const eyeGeo = new THREE.BoxGeometry(0.12, 0.04, 0.12);
-                const eyeMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
-                
-                const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-                leftEye.position.set(-0.18, 0.12, 0.45);
-                
-                const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-                rightEye.position.set(0.18, 0.12, 0.45);
+                // 4. Boca dulce de caricatura (un pequeño toro/caja ajustable)
+                const mouthGeo = new THREE.BoxGeometry(0.14, 0.05, 0.04);
+                const mouthMat = new THREE.MeshBasicMaterial({ color: 0x2E1065 });
+                this.blobMouth = new THREE.Mesh(mouthGeo, mouthMat);
+                this.blobMouth.position.set(0, -0.12, 0.48);
+                this.avatarGroup.add(this.blobMouth);
 
-                this.avatarGroup.add(leftEye);
-                this.avatarGroup.add(rightEye);
-                this.avatarEyes.push(leftEye, rightEye);
+                // 5. Antena con una pequeña estrella juguetona en el extremo
+                const antennaPoleGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.25);
+                const antennaPoleMat = new THREE.MeshPhongMaterial({ color: 0xFFFFFF });
+                const antennaPole = new THREE.Mesh(antennaPoleGeo, antennaPoleMat);
+                antennaPole.position.set(0, 0.6, 0);
+                this.avatarGroup.add(antennaPole);
 
-                // 4. Panel de boca expresivo
-                const mouthGeo = new THREE.BoxGeometry(0.24, 0.03, 0.05);
-                const mouthMat = new THREE.MeshBasicMaterial({ color: 0x00FFFF });
-                this.avatarMouth = new THREE.Mesh(mouthGeo, mouthMat);
-                this.avatarMouth.position.set(0, -0.15, 0.45);
-                this.avatarGroup.add(this.avatarMouth);
+                const starGeo = new THREE.OctahedronGeometry(0.12, 0);
+                const starMat = new THREE.MeshPhongMaterial({
+                    color: 0xFBBF24,
+                    emissive: 0x92400E,
+                    shininess: 100
+                });
+                this.antennaStar = new THREE.Mesh(starGeo, starMat);
+                this.antennaStar.position.set(0, 0.74, 0);
+                this.avatarGroup.add(this.antennaStar);
 
-                // Ajuste inicial para móviles
-                this.adaptAvatarToScreen();
+                this.adaptMascotToScreen();
             }
 
-            // Adaptabilidad espacial para que el avatar quepa en pantallas móviles
-            adaptAvatarToScreen() {
+            adaptMascotToScreen() {
                 if (window.innerWidth < 768) {
-                    // Pantalla móvil: colocar flotando en el medio superior para no tapar los controles
-                    this.avatarGroup.position.set(0, 1.3, 1.2);
-                    this.avatarGroup.scale.set(0.45, 0.45, 0.45);
+                    // Celulares: Colocar en la parte central superior para no tapar los controles
+                    this.avatarGroup.position.set(0, 1.25, 1.2);
+                    this.avatarGroup.scale.set(0.5, 0.5, 0.5);
                 } else {
-                    // Pantalla escritorio: a un lado del rostro mapeado
-                    this.avatarGroup.position.set(1.5, 0.6, 1.5);
-                    this.avatarGroup.scale.set(0.65, 0.65, 0.65);
+                    // Pantallas grandes: Al lado de la cara mapeada
+                    this.avatarGroup.position.set(1.4, 0.6, 1.5);
+                    this.avatarGroup.scale.set(0.7, 0.7, 0.7);
                 }
             }
 
-            // Geometría dinámica para mapear los 468 puntos faciales
-            createFaceMaskGeometry() {
-                // Utilizaremos un BufferGeometry dinámico para construir la malla en base al rastreo en tiempo real
+            // Cambiamos la red facial aburrida por puntos mágicos / brillantina
+            createMagicPointsGeometry() {
                 this.faceGeometry = new THREE.BufferGeometry();
                 
-                // Malla de índice para dibujar un wireframe facial bien definido
-                const material = new THREE.MeshBasicMaterial({
-                    color: 0x00FFFF,
-                    wireframe: true,
+                // Representaremos el rostro con pequeñas esferas doradas y rosadas
+                const pointsMaterial = new THREE.PointsMaterial({
+                    color: 0xFF75B5,
+                    size: 0.065, // Pequeñas esferas tiernas
                     transparent: true,
-                    opacity: 0.35,
+                    opacity: 0.85,
                     depthWrite: false
                 });
 
-                this.faceMesh = new THREE.Mesh(this.faceGeometry, material);
-                this.scene.add(this.faceMesh);
+                this.facePoints = new THREE.Points(this.faceGeometry, pointsMaterial);
+                this.scene.add(this.facePoints);
             }
 
-            // Partículas flotantes alrededor del robot
-            createParticles() {
-                const count = 80;
+            // Destellos de purpurina flotante alrededor de la mascota
+            createSparkles() {
+                const count = 60;
                 const geo = new THREE.BufferGeometry();
                 const pos = new Float32Array(count * 3);
 
                 for(let i=0; i < count*3; i+=3) {
-                    pos[i] = (Math.random() - 0.5) * 6;
-                    pos[i+1] = (Math.random() - 0.5) * 6;
-                    pos[i+2] = (Math.random() - 2);
+                    pos[i] = (Math.random() - 0.5) * 5;
+                    pos[i+1] = (Math.random() - 0.5) * 5;
+                    pos[i+2] = (Math.random() - 2.5);
                 }
 
                 geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+                
+                // Puntos como estrellas
                 const mat = new THREE.PointsMaterial({
-                    size: 0.04,
-                    color: 0x00BFFF,
+                    size: 0.06,
+                    color: 0xFBBF24, // Color dorado destellante
                     transparent: true,
-                    opacity: 0.8
+                    opacity: 0.9
                 });
 
-                this.particleSystem = new THREE.Points(geo, mat);
-                this.scene.add(this.particleSystem);
+                this.sparkleSystem = new THREE.Points(geo, mat);
+                this.scene.add(this.sparkleSystem);
             }
 
-            // Actualiza los puntos de la máscara facial 3D en base al output de MediaPipe
+            // Actualizar el mapeo de la cara en 3D
             updateFaceMesh(landmarks) {
                 if (!this.showWireMask) {
-                    this.faceMesh.visible = false;
+                    this.facePoints.visible = false;
                     return;
                 }
-                this.faceMesh.visible = true;
+                this.facePoints.visible = true;
 
                 const positions = [];
-                // Mapear los puntos adaptando coordenadas espaciales
                 landmarks.forEach(lm => {
-                    // Transformación de coordenadas de normalizado (0 a 1) a espacio 3D
-                    // Centramos el rostro usando el punto de la nariz como referencia relativa o simplemente reescala
                     const x = (lm.x - 0.5) * 3.5;
                     const y = -(lm.y - 0.5) * 4.5;
-                    const z = -lm.z * 3.5; // Profundidad proyectada
+                    const z = -lm.z * 3.5;
                     positions.push(x, y, z);
                 });
 
                 const vertices = new Float32Array(positions);
                 this.faceGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-                this.faceGeometry.computeVertexNormals();
                 this.faceGeometry.attributes.position.needsUpdate = true;
             }
 
-            // Animar comportamiento físico del avatar 3D
+            // Animación y reactividad de la mascota tierna
             updateAvatar(expressions, headData, time) {
                 if (!this.avatarGroup) return;
 
-                this.adaptAvatarToScreen(); // Asegurar consistencia al rotar celular
+                this.adaptMascotToScreen();
 
-                // 1. Movimiento de levitación constante (Seno/Coseno)
-                this.avatarGroup.position.y += Math.sin(time * 2.5) * 0.003;
-                this.avatarOrbit.rotation.z += 0.015;
+                // 1. Efecto de "Gomita que levita" (rebote suave y deformación gelatinosa)
+                const hoverOffset = Math.sin(time * 3) * 0.04;
+                this.avatarGroup.position.y += hoverOffset;
+                this.antennaStar.rotation.y += 0.04;
+                
+                // Rotación suave del cuerpo de gelatina
+                this.blobBody.rotation.y = Math.sin(time) * 0.15;
 
-                // 2. Imitación sutil de los movimientos de cabeza del usuario (Head Tracking)
-                const targetRotX = headData.pitch * 0.5;
-                const targetRotY = -headData.yaw * 0.5;
-                const targetRotZ = headData.roll * 0.3;
+                // 2. Head tracking adaptado con suavidad (La mascota te mira y te imita)
+                const targetRotX = headData.pitch * 0.4;
+                const targetRotY = -headData.yaw * 0.4;
+                const targetRotZ = headData.roll * 0.25;
 
-                // Interpolación lineal suave (lerp)
-                this.avatarGroup.rotation.x += (targetRotX - this.avatarGroup.rotation.x) * 0.1;
-                this.avatarGroup.rotation.y += (targetRotY - this.avatarGroup.rotation.y) * 0.1;
-                this.avatarGroup.rotation.z += (targetRotZ - this.avatarGroup.rotation.z) * 0.1;
+                this.avatarGroup.rotation.x += (targetRotX - this.avatarGroup.rotation.x) * 0.12;
+                this.avatarGroup.rotation.y += (targetRotY - this.avatarGroup.rotation.y) * 0.12;
+                this.avatarGroup.rotation.z += (targetRotZ - this.avatarGroup.rotation.z) * 0.12;
 
-                // 3. Reactividad expresiva del Avatar
-                if (expressions.smile > 0.4) {
-                    // Estado Alegre (Verde/Cyan)
-                    this.targetColor.setHex(0x10B981);
-                    this.avatarMouth.scale.set(1.2, 2.5, 1);
-                    this.avatarEyes.forEach(eye => eye.scale.set(1, 0.4, 1)); // Ojos achinados de felicidad
+                // 3. Reactividad expresiva de Blob Buddy
+                if (expressions.smile > 0.45) {
+                    // Sonriente y avergonzado
+                    this.currentColor.lerp(this.colorJoy, 0.1);
+                    this.blobBody.scale.set(1.08, 0.92, 1.05); // Se aplasta tiernamente de felicidad
+                    this.blobBlushes.forEach(b => b.scale.set(1.5, 1.5, 1.5)); // Se sonroja más
+                    this.blobMouth.scale.set(1.4, 3, 1); // Gran sonrisa
+                    
+                    // Ojos felices achinados
+                    this.blobEyes.forEach(e => e.scale.set(1.1, 0.4, 1.1));
+                    this.blobPupils.forEach(p => p.scale.set(1, 0.3, 1));
                 } else if (expressions.jawOpen > 0.4) {
-                    // Estado Sorprendido (Amarillo/Magenta)
-                    this.targetColor.setHex(0xFF00FF);
-                    this.avatarMouth.scale.set(0.6, 6, 1); // Boca muy abierta
-                    this.avatarEyes.forEach(eye => eye.scale.set(1.5, 1.5, 1)); // Ojos abiertos asombrados
+                    // Sorprendido en grande
+                    this.currentColor.lerp(this.colorSurprise, 0.1);
+                    this.blobBody.scale.set(0.92, 1.15, 0.92); // Se estira de asombro
+                    this.blobBlushes.forEach(b => b.scale.set(0.8, 0.8, 0.8));
+                    this.blobMouth.scale.set(0.7, 5, 1); // Boca en forma de "O" gigante
+                    
+                    this.blobEyes.forEach(e => e.scale.set(1.3, 1.3, 1.3)); // Ojazos
+                    this.blobPupils.forEach(p => p.scale.set(1.3, 1.3, 1.3));
                 } else if (expressions.frown > 0.45) {
-                    // Estado Molesto o Concentrado (Rojo)
-                    this.targetColor.setHex(0xEF4444);
-                    this.avatarMouth.scale.set(0.8, 1, 1);
-                    this.avatarEyes[0].rotation.z = -0.15; // Ojos enojados
-                    this.avatarEyes[1].rotation.z = 0.15;
+                    // Enfadado juguetón (Puchero)
+                    this.currentColor.lerp(this.colorAngry, 0.1);
+                    this.blobBody.scale.set(1, 1, 1);
+                    this.blobBlushes.forEach(b => b.scale.set(1, 1, 1));
+                    this.blobMouth.scale.set(0.8, 1, 1);
+                    
+                    // Ojos enfadados cruzados
+                    this.blobEyes[0].rotation.z = -0.2;
+                    this.blobEyes[1].rotation.z = 0.2;
+                    this.blobEyes.forEach(e => e.scale.set(1, 0.85, 1));
                 } else {
-                    // Estado Neutro (Cyan Estándar)
-                    this.targetColor.setHex(0x00FFFF);
-                    this.avatarMouth.scale.set(1, 1, 1);
-                    this.avatarEyes.forEach(eye => {
-                        eye.scale.set(1, 1, 1);
-                        eye.rotation.z = 0;
+                    // Estado relajado y feliz por defecto
+                    this.currentColor.lerp(this.colorNormal, 0.08);
+                    this.blobBody.scale.set(1, 1, 1);
+                    this.blobBlushes.forEach(b => b.scale.set(1, 1, 1));
+                    this.blobMouth.scale.set(1, 1, 1);
+                    
+                    this.blobEyes.forEach(e => {
+                        e.scale.set(1, 1, 1);
+                        e.rotation.z = 0;
                     });
+                    this.blobPupils.forEach(p => p.scale.set(1, 1, 1));
                 }
 
-                // Cierre/Blink de ojos independiente (Guiños)
+                // Parpadeo / Guiño independiente de caricatura
                 if (expressions.leftEyeBlink > 0.6 && expressions.rightEyeBlink < 0.3) {
-                    this.avatarEyes[0].scale.y = 0.1; // Cerrar ojo izquierdo
+                    this.blobEyes[0].scale.y = 0.1; // Guiño izquierdo ;)
+                    this.blobPupils[0].scale.y = 0.1;
                 }
                 if (expressions.rightEyeBlink > 0.6 && expressions.leftEyeBlink < 0.3) {
-                    this.avatarEyes[1].scale.y = 0.1; // Cerrar ojo derecho
+                    this.blobEyes[1].scale.y = 0.1; // Guiño derecho ;)
+                    this.blobPupils[1].scale.y = 0.1;
                 }
 
-                // Transición cromática suave
-                this.currentColor.lerp(this.targetColor, 0.08);
-                this.avatarOrb.material.color.copy(this.currentColor);
-                this.avatarOrbit.material.color.copy(this.currentColor);
-                this.avatarMouth.material.color.copy(this.currentColor);
+                // Aplicar transiciones de color suave
+                this.blobBody.material.color.copy(this.currentColor);
 
-                // Mover partículas
-                if (this.particleSystem) {
-                    this.particleSystem.rotation.y += 0.002;
+                // Rotar los destellos dorados
+                if (this.sparkleSystem) {
+                    this.sparkleSystem.rotation.y += 0.003;
+                    this.sparkleSystem.rotation.x += 0.001;
                 }
 
                 this.renderer.render(this.scene, this.camera);
@@ -684,12 +729,11 @@
         const render = new RenderEngine();
 
         /* ==========================================
-           3. STREAMING_CHUNK: MOTOR DE EXPRESIONES (MATEMÁTICA Y RED FACIAL)
+           3. STREAMING_CHUNK: CLASIFICADOR MATEMÁTICO DE CARITAS
            ========================================== */
         class ExpressionEstimator {
             constructor() {
                 this.lastExpressionTriggered = 'neutral';
-                this.confidence = 0;
                 this.expressions = {
                     smile: 0,
                     jawOpen: 0,
@@ -701,7 +745,6 @@
                 this.headOrientation = { yaw: 0, pitch: 0, roll: 0 };
             }
 
-            // Distancia Euclidiana Euclidiana en espacio 3D
             distance(p1, p2) {
                 return Math.sqrt(
                     Math.pow(p1.x - p2.x, 2) +
@@ -710,113 +753,104 @@
                 );
             }
 
-            // Algoritmo matemático para clasificar expresiones basados en distancias de Landmarks
             analyze(landmarks) {
                 if (!landmarks || landmarks.length < 468) return null;
 
-                // Tomamos un factor de escala robusto basado en el ancho interocular (distancia entre esquinas exteriores de ojos)
-                // Esto permite que el sistema funcione igual de bien de lejos o cerca
                 const eyeDist = this.distance(landmarks[33], landmarks[263]);
 
-                // 1. Sonrisa: calculada mediante la distancia del labio izquierdo al derecho
+                // 1. Sonrisa
                 const lipWidth = this.distance(landmarks[61], landmarks[291]);
                 this.expressions.smile = Math.max(0, Math.min(1, (lipWidth / eyeDist - 0.70) / 0.25));
 
-                // 2. Apertura de boca (Mandíbula): labio superior interno a inferior interno
+                // 2. Boca abierta (Mandíbula)
                 const innerLipGap = this.distance(landmarks[13], landmarks[14]);
                 this.expressions.jawOpen = Math.max(0, Math.min(1, (innerLipGap / eyeDist - 0.03) / 0.35));
 
-                // 3. Guiños de ojos (Medimos la altura del párpado)
+                // 3. Guiños
                 const leftEyeHeight = this.distance(landmarks[159], landmarks[145]);
                 const rightEyeHeight = this.distance(landmarks[386], landmarks[374]);
-                
-                // Evaluando ratio parpadeo
-                const baseEyeRatio = 0.09; // Ajuste calibración
                 this.expressions.leftEyeBlink = leftEyeHeight / eyeDist < 0.035 ? 1 : 0;
                 this.expressions.rightEyeBlink = rightEyeHeight / eyeDist < 0.035 ? 1 : 0;
 
-                // 4. Elevación de cejas: Distancia de la ceja al ojo correspondiente
+                // 4. Elevación de cejas
                 const leftBrowDist = this.distance(landmarks[105], landmarks[159]);
                 const rightBrowDist = this.distance(landmarks[334], landmarks[386]);
                 const avgBrowDist = (leftBrowDist + rightBrowDist) / 2;
                 this.expressions.browRaise = Math.max(0, Math.min(1, (avgBrowDist / eyeDist - 0.16) / 0.12));
 
-                // 5. Fruncido de cejas (Enfado/Concentración): distancia de cejas internas
+                // 5. Fruncido (Enfado/Puchero)
                 const browInnerGap = this.distance(landmarks[21], landmarks[251]);
                 this.expressions.frown = Math.max(0, Math.min(1, (0.26 - (browInnerGap / eyeDist)) / 0.12));
 
-                // 6. Cálculo de orientación de cabeza (Euler Angles simplificados)
-                // Yaw: desviación horizontal de la nariz con respecto a los ojos
+                // 6. Orientación de la cabeza
                 const nose = landmarks[1];
                 const leftEye = landmarks[33];
                 const rightEye = landmarks[263];
                 const eyeMidPointX = (leftEye.x + rightEye.x) / 2;
                 this.headOrientation.yaw = (nose.x - eyeMidPointX) * 2.5;
 
-                // Pitch: desviación vertical de la nariz
                 const eyeMidPointY = (leftEye.y + rightEye.y) / 2;
                 this.headOrientation.pitch = (nose.y - eyeMidPointY - 0.12) * 2;
 
-                // Roll: inclinación de la cabeza mediante la rotación interocular
                 this.headOrientation.roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
 
                 return this.translateToTranslation();
             }
 
-            // Traduce los valores matemáticos de las expresiones a textos estructurados
             translateToTranslation() {
-                let primary = "NEUTRO";
-                let emoji = "😐";
+                let primary = "CARITA RELAJADA";
+                let emoji = "🧸";
                 let confidence = 95;
-                let desc = "Rostro en estado relajado. Mapeando parámetros biométricos basales...";
+                let desc = "¡Te ves de maravilla! Tu amiguito está listo y flotando alegremente a tu lado esperando tus gestos.";
                 let audioType = "neutro";
 
-                // En base a thresholds priorizados, clasificamos
                 if (this.expressions.smile > 0.45) {
-                    primary = "ALEGRÍA / SONRISA";
-                    emoji = "😊";
+                    primary = "¡UNA GRAN SONRISA!";
+                    emoji = "🥰";
                     confidence = Math.round(this.expressions.smile * 100);
-                    desc = "La contracción de los músculos cigomáticos indica una alta probabilidad de una emoción positiva, felicidad o empatía social.";
+                    desc = "¡Qué bonita sonrisa tienes! Estás contrayendo los músculos felices de tu cara. ¡Tu amiguito está saltando de alegría!";
                     audioType = "alegria";
                 } else if (this.expressions.jawOpen > 0.40) {
-                    primary = "SORPRESA / ASOMBRO";
+                    primary = "¡Mucha Sorpresa!";
                     emoji = "😲";
                     confidence = Math.round(this.expressions.jawOpen * 100);
-                    desc = "La caída rápida de la mandíbula y ensanchamiento ocular denotan una respuesta fisiológica clásica ante estímulos inesperados.";
+                    desc = "¡Guau! Has abierto la boca en grande de par en par. ¿Viste algo asombroso o te contaron un secreto?";
                     audioType = "sorpresa";
                 } else if (this.expressions.frown > 0.45) {
-                    primary = "CONCENTRACIÓN / FRUSTRACIÓN";
+                    primary = "¡PUCHERO O CONCENTRACIÓN!";
                     emoji = "😠";
                     confidence = Math.round(this.expressions.frown * 100);
-                    desc = "Cejas aproximadas e inclinadas hacia abajo. Comportamiento asociado con procesos de concentración profunda, desacuerdo, o tensión temporal.";
+                    desc = "Parece que estás frunciendo tus cejas. Tal vez estás muy concentrado pensando en un rompecabezas o haciendo un puchero travieso.";
                     audioType = "frown";
                 } else if (this.expressions.browRaise > 0.50) {
                     primary = "CEJAS ELEVADAS";
                     emoji = "🤨";
                     confidence = Math.round(this.expressions.browRaise * 100);
-                    desc = "Elevación de los músculos frontales de la frente. Sugiere una actitud inquisitiva, escepticismo o atención enfocada.";
+                    desc = "¡Cejas arriba! Esta carita suele significar curiosidad extrema o sorpresa de caricatura. ¿Qué estás tramando?";
                 } else if (this.expressions.leftEyeBlink > 0.7 && this.expressions.rightEyeBlink < 0.3) {
-                    primary = "GUIÑO IZQUIERDO DETECTADO";
+                    primary = "¡GUIÑO IZQUIERDO COQUETO!";
                     emoji = "😉";
                     confidence = 99;
-                    desc = "Señal lúdica unilateral de parpadeo. Detectada interacción manual deliberada con el sistema.";
+                    desc = "¡Genial! Has hecho un guiño perfecto con el ojo izquierdo. ¡Tu amiguito de gelatina te devolvió el saludo!";
                 } else if (this.expressions.rightEyeBlink > 0.7 && this.expressions.leftEyeBlink < 0.3) {
-                    primary = "GUIÑO DERECHO DETECTADO";
-                    emoji = "😉";
+                    primary = "¡GUIÑO DERECHO DIVERTIDO!";
+                    emoji = "😜";
                     confidence = 99;
-                    desc = "Señal lúdica unilateral de parpadeo. Mapeada calibración ocular asimétrica.";
+                    desc = "¡Qué gracioso! Guiñaste el ojo derecho de forma increíble. ¡Sigue probando caras locas!";
                 }
 
-                // Registrar cambios de emoción e interactuar con sintetizador
                 if (primary !== this.lastExpressionTriggered) {
                     this.lastExpressionTriggered = primary;
-                    audio.playExpressionSweep(audioType);
-                    // Efecto de explosión de escala del emoji en el HUD
-                    gsap.fromTo('#trans-emoji', { scale: 0.7, rotation: -10 }, { scale: 1, rotation: 0, duration: 0.4, ease: "back.out" });
+                    audio.playCuteReaction(audioType);
+                    // Efecto de brinco inflable para el emoji en el panel
+                    gsap.fromTo('#trans-emoji', 
+                        { scale: 0.6, rotation: -15 }, 
+                        { scale: 1, rotation: 3, duration: 0.5, ease: "bounce.out" }
+                    );
                 }
 
                 return {
-                    title: primary,
+                    title: primary.toUpperCase(),
                     emoji: emoji,
                     confidence: confidence,
                     desc: desc,
@@ -829,7 +863,7 @@
         const tracker = new ExpressionEstimator();
 
         /* ==========================================
-           4. STREAMING_CHUNK: ORQUESTADOR PRINCIPAL (FLOW MANAGER)
+           4. STREAMING_CHUNK: ORQUESTADOR PRINCIPAL JUGUETÓN
            ========================================== */
         class App {
             constructor() {
@@ -851,33 +885,30 @@
             }
 
             init() {
-                // Evento inicializador
-                this.btnStart.addEventListener('click', () => this.startSecureEngine());
+                this.btnStart.addEventListener('click', () => this.startPlayfulEngine());
                 
-                // Toggle para prender/apagar máscara
+                // Toggle para activar/desactivar estrellas faciales
                 document.getElementById('btn-toggle-mesh').addEventListener('click', (e) => {
                     render.showWireMask = !render.showWireMask;
-                    e.target.innerText = render.showWireMask ? "WIRE MASK: ON" : "WIRE MASK: OFF";
-                    e.target.classList.toggle('text-cyber-cyan');
-                    e.target.classList.toggle('text-slate-500');
-                    audio.playBeep(800, 0.05);
+                    e.target.innerText = render.showWireMask ? "Filtro: Brillantinas ✨" : "Filtro: APAGADO";
+                    e.target.classList.toggle('text-magic-pink');
+                    e.target.classList.toggle('text-slate-400');
+                    audio.playPop(784, 0.08); // Tono agradable de clic
                 });
             }
 
-            // Iniciar flujo de ejecución
-            async startSecureEngine() {
-                // Iniciar Audio en gesto del usuario para saltarse limitaciones del navegador
+            async startPlayfulEngine() {
+                // Iniciar Audio interactivo
                 audio.init();
-                audio.playBootUp();
+                audio.playWelcomeChime();
 
-                // Transición a la carga
+                // Cambiar a la linda pantalla de carga
                 this.landingScreen.classList.add('hidden');
                 this.loadingScreen.classList.remove('hidden');
 
                 try {
-                    this.updateLoading(10, 'Iniciando periféricos', 'Localizando cámara del dispositivo...');
+                    this.updateLoading(15, 'Buscando cámara 📸', 'Ajustando los lentes de caricatura...');
                     
-                    // 1. Obtener acceso de cámara
                     const stream = await navigator.mediaDevices.getUserMedia({
                         video: {
                             facingMode: 'user',
@@ -889,9 +920,9 @@
                     
                     this.webcam.srcObject = stream;
                     await this.webcam.play();
-                    this.updateLoading(40, 'Cámara en línea', 'Inicializando dependencias de MediaPipe...');
+                    this.updateLoading(45, '¡Cámara lista! ✨', 'Invocando la magia neuronal de MediaPipe...');
 
-                    // 2. Cargar dependencias de Inteligencia Artificial (MediaPipe Face Mesh)
+                    // Inicializar Face Mesh de MediaPipe
                     this.faceMeshMP = new FaceMesh({
                         locateFile: (file) => {
                             return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
@@ -907,12 +938,12 @@
 
                     this.faceMeshMP.onResults((results) => this.onMeshResults(results));
 
-                    this.updateLoading(70, 'IA Configurada', 'Abriendo hilo de predicciones WebGL...');
+                    this.updateLoading(75, '¡Preparando escenario! 🎈', 'Colocando brillantina y amiguito 3D...');
 
-                    // 3. Inicializar Three.js
+                    // Inicializar render 3D
                     render.init();
 
-                    // 4. Inicializar bucle de captura de cámara nativo
+                    // Lanzar bucle de captura nativo
                     this.cameraMP = new Camera(this.webcam, {
                         onFrame: async () => {
                             await this.faceMeshMP.send({ image: this.webcam });
@@ -921,11 +952,10 @@
                         height: 480
                     });
 
-                    this.updateLoading(90, 'Estableciendo render', 'Hologramas cargados. Abriendo HUD...');
+                    this.updateLoading(95, '¡A Jugar! 🥳', 'Abriendo el espejo mágico...');
                     
                     await this.cameraMP.start();
 
-                    // Finalización de carga y apertura
                     setTimeout(() => {
                         this.loadingScreen.classList.add('hidden');
                         this.appContainer.classList.remove('hidden');
@@ -933,25 +963,23 @@
                     }, 800);
 
                 } catch (err) {
-                    console.error("Fallo de inicialización de motor WebAR:", err);
-                    this.loadingStatus.innerHTML = "<span class='text-red-500'>ERROR CRÍTICO</span>";
-                    this.loadingLog.innerText = "No se pudo iniciar la cámara. Otorga permisos de acceso e intenta de nuevo.";
+                    console.error("Fallo del espejo mágico:", err);
+                    this.loadingStatus.innerHTML = "<span class='text-magic-pink'>¡HAY UN DETALLE! 🧐</span>";
+                    this.loadingLog.innerText = "No logramos abrir tu cámara. Asegúrate de dar los permisos correspondientes.";
                 }
             }
 
-            // Actualización visual de pantalla de calibración
             updateLoading(percent, title, subtitle) {
                 this.loadingPercent.innerText = `${percent}%`;
                 this.loadingBar.style.width = `${percent}%`;
-                this.loadingStatus.innerText = title.toUpperCase();
-                this.loadingLog.innerText = subtitle.toUpperCase();
+                this.loadingStatus.innerText = title;
+                this.loadingLog.innerText = subtitle;
             }
 
-            // Callback procesado de MediaPipe
             onMeshResults(results) {
                 const now = performance.now();
                 
-                // Cálculo de FPS del analizador de visión
+                // Calcular FPS amigables
                 this.frameCount++;
                 if (now - this.lastFrameTime >= 1000) {
                     this.fps = this.frameCount;
@@ -963,46 +991,37 @@
                 if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
                     const landmarks = results.multiFaceLandmarks[0];
 
-                    // 1. Clasificación Emocional Matemática
+                    // 1. Análisis de expresiones
                     const data = tracker.analyze(landmarks);
                     
                     if (data) {
-                        // 2. Mapear máscara interactiva 3D
+                        // 2. Mapear estrellas de purpurina en el rostro
                         render.updateFaceMesh(landmarks);
 
-                        // 3. Actualizar comportamiento del Robot Asistente 3D
+                        // 3. Mover y animar la mascota Blob Buddy
                         render.updateAvatar(data.raw, data.orientation, now * 0.001);
 
-                        // 4. Actualizar toda la información de la Interfaz HUD
+                        // 4. Actualizar la interfaz colorida
                         this.updateHUD(data);
                     }
                 } else {
-                    // Estado sin rostro
-                    document.getElementById('core-state').innerText = "BUSCANDO ROSTRO...";
-                    document.getElementById('core-state').className = "text-yellow-500 uppercase animate-pulse";
-                    
-                    // Regresar avatar a posición neutra lentamente
+                    // Si no detecta rostro
                     render.updateAvatar({
                         smile: 0, jawOpen: 0, frown: 0, browRaise: 0, leftEyeBlink: 0, rightEyeBlink: 0
                     }, { yaw: 0, pitch: 0, roll: 0 }, now * 0.001);
                 }
             }
 
-            // Sincronizar datos del Translator con el DOM de la Interfaz
+            // Sincronizar los resultados en la interfaz
             updateHUD(data) {
-                document.getElementById('core-state').innerText = "TRACKING COMPLETO";
-                document.getElementById('core-state').className = "text-cyber-accent uppercase";
-
-                // Títulos e interpretación
                 document.getElementById('trans-title').innerText = data.title;
                 document.getElementById('trans-emoji').innerText = data.emoji;
                 document.getElementById('trans-desc').innerText = data.desc;
                 
-                // Porcentaje de confianza cognitiva
                 document.getElementById('trans-confidence').innerText = `${data.confidence}%`;
                 document.getElementById('trans-confidence-bar').style.width = `${data.confidence}%`;
 
-                // Telemetría cruda en el panel izquierdo (si se muestra)
+                // Telemetrías del panel izquierdo (en pantallas medianas/grandes)
                 document.getElementById('tel-smile-pct').innerText = `${Math.round(data.raw.smile * 100)}%`;
                 document.getElementById('tel-smile-bar').style.width = `${data.raw.smile * 100}%`;
 
@@ -1015,25 +1034,20 @@
                 document.getElementById('tel-brow-pct').innerText = `${Math.round(data.raw.browRaise * 100)}%`;
                 document.getElementById('tel-brow-bar').style.width = `${data.raw.browRaise * 100}%`;
 
-                // Orientación de la cabeza
-                document.getElementById('tel-yaw').innerText = `${Math.round(data.orientation.yaw * 180 / Math.PI)}°`;
-                document.getElementById('tel-pitch').innerText = `${Math.round(data.orientation.pitch * 180 / Math.PI)}°`;
-
-                // Cambiar el glow de fondo según el tipo de emoción actual
+                // Cambiar el resplandor de fondo según tu gesto
                 const glow = document.getElementById('dynamic-glow');
-                if (data.raw.smile > 0.4) {
-                    glow.style.backgroundColor = '#10B981'; // Verde alegría
+                if (data.raw.smile > 0.45) {
+                    glow.style.backgroundColor = '#FBBF24'; // Brillo dorado feliz
                 } else if (data.raw.jawOpen > 0.4) {
-                    glow.style.backgroundColor = '#FF00FF'; // Magenta sorpresa
+                    glow.style.backgroundColor = '#38BDF8'; // Brillo azul de asombro
                 } else if (data.raw.frown > 0.4) {
-                    glow.style.backgroundColor = '#EF4444'; // Rojo enfado
+                    glow.style.backgroundColor = '#8B5CF6'; // Brillo morado puchero
                 } else {
-                    glow.style.backgroundColor = '#00FFFF'; // Cyan por defecto
+                    glow.style.backgroundColor = '#FF75B5'; // Rosa normal tierno
                 }
             }
         }
 
-        // Instanciar la app al cargar el DOM de manera segura
         window.addEventListener('DOMContentLoaded', () => {
             const system = new App();
             system.init();
