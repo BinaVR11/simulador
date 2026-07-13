@@ -1,805 +1,127 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Experiencia de Realidad Aumentada - Detección de Manos TFJS</title>
-    <!-- Tailwind CSS para el diseño responsivo -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Orbitron para estética Sci-Fi y Inter para textos generales -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
-    <!-- FontAwesome para iconos modernos -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #030712;
-            overflow-x: hidden;
-        }
-        .scifi-font {
-            font-family: 'Orbitron', sans-serif;
-        }
-        /* Efecto de brillo de neon y ciberpunk */
-        .neon-border {
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.4), inset 0 0 15px rgba(16, 185, 129, 0.2);
-        }
-        .neon-text-green {
-            text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
-        }
-        .neon-text-blue {
-            text-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
-        }
-        .glass-panel {
-            background: rgba(17, 24, 39, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        /* Ocultar el video nativo, se procesa en segundo plano */
-        #webcam {
-            display: none;
-        }
-        /* El canvas ajustará su espejo dinámicamente mediante JS */
-        #ar-canvas {
-            transition: transform 0.4s ease-in-out;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Hand Tracking WebAR</title>
+
+<style>
+
+html,body{
+margin:0;
+overflow:hidden;
+background:black;
+}
+
+video{
+position:absolute;
+width:100vw;
+height:100vh;
+object-fit:cover;
+transform:scaleX(-1);
+}
+
+canvas{
+position:absolute;
+width:100vw;
+height:100vh;
+pointer-events:none;
+}
+
+</style>
+
 </head>
-<body class="text-gray-100 min-h-screen flex flex-col justify-between">
-
-    <!-- Header / HUD Principal -->
-    <header class="glass-panel border-b border-gray-800 p-4 sticky top-0 z-50 transition-all duration-300">
-        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-emerald-500/20 border border-emerald-500 flex items-center justify-center animate-pulse">
-                    <i class="fa-solid fa-hands-holding-child text-emerald-400 text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="scifi-font text-lg md:text-xl font-bold tracking-wider text-emerald-400 neon-text-green">AR MULTI-HANDS</h1>
-                    <p class="text-xs text-gray-400">TensorFlow.js + MediaPipe Real-Time Engine</p>
-                </div>
-            </div>
-            
-            <div class="flex items-center gap-2 md:gap-4 w-full sm:w-auto justify-end">
-                <!-- Monitor de FPS y Estado de Reducido Retraso -->
-                <div class="glass-panel px-3 py-1.5 rounded-lg border border-gray-700 flex items-center gap-2 text-xs">
-                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
-                    <span class="text-gray-300">ESTADO:</span>
-                    <span id="status-badge" class="font-bold text-emerald-400 scifi-font">CARGANDO MODELO...</span>
-                </div>
-                <div class="glass-panel px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-center min-w-[70px]">
-                    <span class="text-gray-400">FPS:</span>
-                    <span id="fps-counter" class="font-bold text-blue-400 scifi-font">00</span>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- Área de AR Principal -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:py-6 grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch">
-        
-        <!-- Vista del Dispositivo AR (Columna Izquierda y Central - 3/4) -->
-        <div class="lg:col-span-3 flex flex-col gap-4">
-            <div class="relative flex-1 glass-panel rounded-2xl overflow-hidden border border-gray-800 flex items-center justify-center min-h-[50vh] max-h-[75vh] shadow-2xl">
-                
-                <!-- Video de Cámara oculto (procesador) -->
-                <video id="webcam" autoplay playsinline muted></video>
-                
-                <!-- Canvas de renderizado principal AR -->
-                <canvas id="ar-canvas" class="absolute top-0 left-0 w-full h-full object-cover z-10"></canvas>
-                
-                <!-- Botón flotante para cambiar de cámara (Soporte PC, móvil y Tablet) -->
-                <button id="btn-switch-cam" class="absolute top-4 right-4 z-30 glass-panel border-gray-700 hover:border-emerald-500 text-gray-300 hover:text-emerald-400 p-3 rounded-xl transition-all duration-300 shadow-lg flex items-center gap-2 text-xs font-semibold">
-                    <i class="fa-solid fa-camera-rotate text-base animate-pulse"></i>
-                    <span>Rotar Cámara</span>
-                </button>
-
-                <!-- Onboarding y Pantalla de Carga interactiva -->
-                <div id="onboarding-screen" class="absolute inset-0 bg-gray-950/90 z-20 flex flex-col items-center justify-center p-6 text-center transition-all duration-500">
-                    <div class="max-w-md space-y-6">
-                        <div class="relative w-24 h-24 mx-auto mb-2 flex items-center justify-center">
-                            <div class="absolute inset-0 rounded-full border-4 border-emerald-500/30 animate-spin border-t-emerald-500"></div>
-                            <i class="fa-solid fa-hand text-4xl text-emerald-400 animate-bounce"></i>
-                        </div>
-                        <h2 class="scifi-font text-2xl font-bold tracking-widest text-emerald-400">INICIALIZANDO AR ENGINE</h2>
-                        <p class="text-sm text-gray-300 leading-relaxed">
-                            Esta aplicación utiliza la cámara de tu smartphone o tablet para detectar ambas manos en tiempo real mediante Inteligencia Artificial.
-                        </p>
-                        
-                        <div class="p-4 bg-gray-900/60 rounded-xl border border-gray-800 text-left space-y-3">
-                            <div class="flex items-start gap-3 text-xs text-gray-400">
-                                <i class="fa-solid fa-video text-emerald-400 mt-1"></i>
-                                <span>Requiere permisos de cámara para procesar el video de forma local (privacidad garantizada).</span>
-                            </div>
-                            <div class="flex items-start gap-3 text-xs text-gray-400">
-                                <i class="fa-solid fa-lightbulb text-emerald-400 mt-1"></i>
-                                <span>Se recomienda una iluminación estable y de frente para una óptima precisión.</span>
-                            </div>
-                        </div>
-
-                        <button id="btn-start" disabled class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed text-white font-bold rounded-xl transition duration-300 scifi-font tracking-widest shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
-                            <span>ESPERANDO MOTOR...</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Toast de notificaciones internas -->
-                <div id="toast-message" class="absolute top-4 left-1/2 -translate-x-1/2 z-30 glass-panel border-emerald-500/40 text-emerald-400 px-4 py-2 rounded-full text-xs font-semibold tracking-wider scifi-font opacity-0 pointer-events-none transition-all duration-300 flex items-center gap-2">
-                    <i class="fa-solid fa-wand-magic-sparkles animate-spin"></i>
-                    <span id="toast-text">GESTO DETECTADO</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Panel de Control y Configuración (Columna Derecha - 1/4) -->
-        <div class="flex flex-col gap-4">
-            
-            <!-- Widget de Configuración de Efectos -->
-            <div class="glass-panel p-5 rounded-2xl border border-gray-800 space-y-5 flex-1 flex flex-col justify-between">
-                <div>
-                    <h3 class="scifi-font text-sm font-bold tracking-wider text-blue-400 mb-4 border-b border-gray-800 pb-2">
-                        <i class="fa-solid fa-sliders mr-2"></i>AJUSTES AR
-                    </h3>
-                    
-                    <div class="space-y-4">
-                        <!-- Switch de Squeleto -->
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <label class="text-xs font-semibold text-gray-300 block">Esqueleto AR</label>
-                                <span class="text-[10px] text-gray-500 block">Dibuja nodos y falanges</span>
-                            </div>
-                            <button id="toggle-skeleton" class="w-12 h-6 rounded-full bg-emerald-500/30 border border-emerald-500/60 p-0.5 transition-colors relative">
-                                <div class="w-4 h-4 bg-emerald-400 rounded-full shadow absolute top-0.5 left-6 transition-all duration-300"></div>
-                            </button>
-                        </div>
-
-                        <!-- Switch de Partículas -->
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <label class="text-xs font-semibold text-gray-300 block">Efectos de Partículas</label>
-                                <span class="text-[10px] text-gray-500 block">Rastros de energía en dedos</span>
-                            </div>
-                            <button id="toggle-particles" class="w-12 h-6 rounded-full bg-emerald-500/30 border border-emerald-500/60 p-0.5 transition-colors relative">
-                                <div class="w-4 h-4 bg-emerald-400 rounded-full shadow absolute top-0.5 left-6 transition-all duration-300"></div>
-                            </button>
-                        </div>
-
-                        <!-- Switch de Sonido -->
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <label class="text-xs font-semibold text-gray-300 block">Efectos de Audio AR</label>
-                                <span class="text-[10px] text-gray-500 block">Síntesis de sonido interactiva</span>
-                            </div>
-                            <button id="toggle-audio" class="w-12 h-6 rounded-full bg-gray-700/50 border border-gray-600 p-0.5 transition-colors relative">
-                                <div class="w-4 h-4 bg-gray-400 rounded-full shadow absolute top-0.5 left-1 transition-all duration-300"></div>
-                            </button>
-                        </div>
-
-                        <!-- Switch de Lazo Holográfico -->
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <label class="text-xs font-semibold text-gray-300 block">Lazo Intermanos</label>
-                                <span class="text-[10px] text-gray-500 block">Conexión energética entre manos</span>
-                            </div>
-                            <button id="toggle-bridge" class="w-12 h-6 rounded-full bg-emerald-500/30 border border-emerald-500/60 p-0.5 transition-colors relative">
-                                <div class="w-4 h-4 bg-emerald-400 rounded-full shadow absolute top-0.5 left-6 transition-all duration-300"></div>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Consola Holográfica de Estado en vivo -->
-                <div class="mt-4 pt-4 border-t border-gray-800 space-y-3">
-                    <h4 class="scifi-font text-xs font-bold text-gray-400 tracking-wider">
-                        <i class="fa-solid fa-terminal mr-2"></i>CONSOLA DE TELEMETRÍA
-                    </h4>
-                    
-                    <div class="bg-gray-950/80 rounded-xl p-3 border border-gray-800 font-mono text-[11px] space-y-2 h-44 overflow-y-auto" id="console-logs">
-                        <div class="text-blue-400">[0.00] Esperando cámara...</div>
-                        <div class="text-emerald-400">[0.10] Cargando librerías TensorFlow.js...</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Footer descriptivo de la App -->
-    <footer class="glass-panel border-t border-gray-800 p-4 text-center text-xs text-gray-500">
-        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
-            <span>Diseñado para navegadores móviles con soporte WebGL & Web Audio API</span>
-            <div class="flex gap-4">
-                <span class="hover:text-emerald-400 transition cursor-help"><i class="fa-solid fa-shield-halved mr-1"></i>Privado y Seguro</span>
-                <span class="hover:text-emerald-400 transition cursor-help"><i class="fa-solid fa-bolt mr-1"></i>Sin Servidores</span>
-            </div>
-        </div>
-    </footer>
-
-    <!-- Dependencias obligatorias para TFJS Hand Detection con MediaPipe Runtime -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.2.0/dist/tf-core.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.2.0/dist/tf-converter.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.2.0/dist/tf-backend-webgl.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424515/hands.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection@2.0.1/dist/hand-pose-detection.min.js"></script>
-
-    <!-- Script de lógica de la aplicación -->
-    <script>
-        // Referencias a elementos del DOM
-        const video = document.getElementById('webcam');
-        const canvas = document.getElementById('ar-canvas');
-        const ctx = canvas.getContext('2d');
-        
-        const onboardingScreen = document.getElementById('onboarding-screen');
-        const btnStart = document.getElementById('btn-start');
-        const btnSwitchCam = document.getElementById('btn-switch-cam');
-        const statusBadge = document.getElementById('status-badge');
-        const fpsCounter = document.getElementById('fps-counter');
-        const consoleLogs = document.getElementById('console-logs');
-        const toastMessage = document.getElementById('toast-message');
-        const toastText = document.getElementById('toast-text');
-
-        // Switches de control de efectos
-        const toggleSkeletonBtn = document.getElementById('toggle-skeleton');
-        const toggleParticlesBtn = document.getElementById('toggle-particles');
-        const toggleAudioBtn = document.getElementById('toggle-audio');
-        const toggleBridgeBtn = document.getElementById('toggle-bridge');
-
-        // Configuraciones globales de los efectos activos
-        let config = {
-            drawSkeleton: true,
-            emitParticles: true,
-            audioSynth: false,
-            drawBridge: true
-        };
-
-        // Estados del sistema
-        let detector = null;
-        let modelLoaded = false;
-        let isPlaying = false;
-        let particles = [];
-        let lastFrameTime = performance.now();
-        let fps = 0;
-        let gestureStates = { Left: '', Right: '' };
-        let audioCtx = null;
-        
-        // Control de hardware de cámara
-        let currentFacingMode = 'user'; // 'user' (frontal/PC) o 'environment' (trasera)
-        let activeStream = null;
-
-        // Inicialización y trigger de efectos de audio analógico holográficos
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-        }
-
-        function playSynthBeep(freq, type = 'sine', duration = 0.1, volume = 0.1) {
-            if (!config.audioSynth || !audioCtx) return;
-            try {
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                
-                gain.gain.setValueAtTime(volume, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-                
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                
-                osc.start();
-                osc.stop(audioCtx.currentTime + duration);
-            } catch (e) {
-                console.error("Fallo de audio", e);
-            }
-        }
-
-        // Agregar logs elegantes a la consola de telemetría de pantalla
-        function addLog(text, colorClass = 'text-gray-400') {
-            const timestamp = ((performance.now() - initTime) / 1000).toFixed(2);
-            const logItem = document.createElement('div');
-            logItem.className = colorClass;
-            logItem.innerHTML = `[${timestamp}] ${text}`;
-            consoleLogs.appendChild(logItem);
-            consoleLogs.scrollTop = consoleLogs.scrollHeight;
-        }
-        const initTime = performance.now();
-
-        // Configuración de los botones deslizantes interactivos
-        function setupUIControls() {
-            function updateSwitchStyle(btn, state) {
-                const thumb = btn.querySelector('div');
-                if (state) {
-                    btn.classList.remove('bg-gray-700/50', 'border-gray-600');
-                    btn.classList.add('bg-emerald-500/30', 'border-emerald-500/60');
-                    thumb.classList.remove('left-1', 'bg-gray-400');
-                    thumb.classList.add('left-6', 'bg-emerald-400');
-                } else {
-                    btn.classList.remove('bg-emerald-500/30', 'border-emerald-500/60');
-                    btn.classList.add('bg-gray-700/50', 'border-gray-600');
-                    thumb.classList.remove('left-6', 'bg-emerald-400');
-                    thumb.classList.add('left-1', 'bg-gray-400');
-                }
-            }
-
-            toggleSkeletonBtn.addEventListener('click', () => {
-                config.drawSkeleton = !config.drawSkeleton;
-                updateSwitchStyle(toggleSkeletonBtn, config.drawSkeleton);
-                addLog(`Esqueleto AR: ${config.drawSkeleton ? 'ACTIVADO' : 'DESACTIVADO'}`, config.drawSkeleton ? 'text-emerald-400' : 'text-amber-400');
-                playSynthBeep(440, 'sine', 0.08);
-            });
-
-            toggleParticlesBtn.addEventListener('click', () => {
-                config.emitParticles = !config.emitParticles;
-                updateSwitchStyle(toggleParticlesBtn, config.emitParticles);
-                addLog(`Emisión de Partículas: ${config.emitParticles ? 'ACTIVADA' : 'DESACTIVADA'}`, config.emitParticles ? 'text-emerald-400' : 'text-amber-400');
-                playSynthBeep(480, 'sine', 0.08);
-            });
-
-            toggleAudioBtn.addEventListener('click', () => {
-                config.audioSynth = !config.audioSynth;
-                updateSwitchStyle(toggleAudioBtn, config.audioSynth);
-                if (config.audioSynth) {
-                    initAudio();
-                    addLog('Audio Sintetizado: ACTIVADO', 'text-emerald-400');
-                    playSynthBeep(600, 'triangle', 0.2, 0.15);
-                } else {
-                    addLog('Audio Sintetizado: DESACTIVADO', 'text-amber-400');
-                }
-            });
-
-            toggleBridgeBtn.addEventListener('click', () => {
-                config.drawBridge = !config.drawBridge;
-                updateSwitchStyle(toggleBridgeBtn, config.drawBridge);
-                addLog(`Lazo Energético: ${config.drawBridge ? 'ACTIVADO' : 'DESACTIVADO'}`, config.drawBridge ? 'text-emerald-400' : 'text-amber-400');
-                playSynthBeep(520, 'sine', 0.08);
-            });
-        }
-
-        // Clases de física de partículas simples para emulación visual fluida
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x;
-                this.y = y;
-                this.size = Math.random() * 4 + 2;
-                this.speedX = Math.random() * 3 - 1.5;
-                this.speedY = Math.random() * -3 - 1;
-                this.color = color;
-                this.life = 1.0;
-                this.decay = Math.random() * 0.02 + 0.015;
-            }
-            update() {
-                this.x += this.speedX;
-                this.y += this.speedY;
-                this.life -= this.decay;
-                if (this.size > 0.1) this.size -= 0.05;
-            }
-            draw() {
-                ctx.save();
-                ctx.globalAlpha = this.life;
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
-        }
-
-        function createLaserSparks(x, y, color) {
-            if (!config.emitParticles) return;
-            for (let i = 0; i < 3; i++) {
-                particles.push(new Particle(x, y, color));
-            }
-        }
-
-        // Inicializar la cámara de video pidiendo permisos adecuados para celulares o PC
-        async function setupCamera() {
-            const camLabel = currentFacingMode === 'user' ? 'Frontal / PC' : 'Trasera / Entorno';
-            addLog(`Pidiendo acceso a cámara (${camLabel})...`);
-
-            // Apagar cualquier rastro del stream anterior para liberar la cámara limpiamente
-            if (activeStream) {
-                activeStream.getTracks().forEach(track => track.stop());
-            }
-
-            const constraints = {
-                video: {
-                    facingMode: currentFacingMode,
-                    width: { ideal: 640 },
-                    height: { ideal: 480 }
-                },
-                audio: false
-            };
-
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                activeStream = stream;
-                video.srcObject = stream;
-                
-                // Ajustar espejo: las cámaras frontales necesitan invertirse, las traseras no
-                if (currentFacingMode === 'user') {
-                    canvas.style.transform = 'scaleX(-1)';
-                    video.style.transform = 'scaleX(-1)';
-                    addLog("Efecto espejo habilitado (Cámara de autorretrato).");
-                } else {
-                    canvas.style.transform = 'none';
-                    video.style.transform = 'none';
-                    addLog("Efecto espejo deshabilitado (Cámara de entorno).");
-                }
-
-                return new Promise((resolve) => {
-                    video.onloadedmetadata = () => {
-                        resolve(video);
-                    };
-                });
-            } catch (err) {
-                addLog("Error accediendo a la cámara seleccionada.", "text-red-500");
-                showNotification("ERROR DE CÁMARA", "rgba(239, 68, 68, 0.8)");
-                throw err;
-            }
-        }
-
-        // Función para alternar dinámicamente entre cámara frontal y trasera
-        async function switchCamera() {
-            if (!modelLoaded) return;
-            
-            playSynthBeep(700, 'sine', 0.1);
-            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-            
-            const targetCamLabel = currentFacingMode === 'user' ? 'FRONTAL / PC' : 'TRASERA';
-            statusBadge.innerText = "CAMBIANDO CÁMARA...";
-            
-            try {
-                await setupCamera();
-                if (isPlaying) {
-                    video.play();
-                }
-                statusBadge.innerText = "SISTEMA LISTO";
-                showNotification(`CÁMARA: ${targetCamLabel}`, '#10B981');
-            } catch (err) {
-                // Si la cámara seleccionada falla (ej. PC que no tiene trasera), revertimos la selección
-                currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-                addLog("Dispositivo no disponible. Reestableciendo cámara previa.", "text-amber-500");
-                await setupCamera();
-                if (isPlaying) video.play();
-                statusBadge.innerText = "SISTEMA LISTO";
-            }
-        }
-
-        // Cargar el detector de manos en segundo plano
-        async function loadHandPoseDetector() {
-            addLog("Estableciendo backend WebGL...");
-            await tf.setBackend('webgl');
-            await tf.ready();
-            addLog("Cargando modelo Hand-Pose (MediaPipe Runtime)...", "text-blue-400");
-            
-            const model = handPoseDetection.SupportedModels.MediaPipeHands;
-            const detectorConfig = {
-                runtime: 'mediapipe',
-                solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/hands',
-                modelType: 'lite', // Lite es ideal para rendimiento fluido en celulares y tabletas
-                maxNumHands: 2     // Detección obligatoria de ambas manos en simultáneo
-            };
-
-            detector = await handPoseDetection.createDetector(model, detectorConfig);
-            modelLoaded = true;
-            statusBadge.innerText = "SISTEMA LISTO";
-            statusBadge.classList.replace('text-emerald-400', 'text-emerald-400');
-            
-            addLog("Modelo cargado con éxito en GPU", "text-emerald-400 animate-pulse");
-            
-            btnStart.disabled = false;
-            btnStart.innerHTML = `<span>INICIAR EXPERIENCIA</span> <i class="fa-solid fa-bolt"></i>`;
-            btnStart.classList.replace('bg-emerald-600', 'bg-emerald-500');
-        }
-
-        // Mostrar ventanas de notificación holográficas suaves
-        function showNotification(text, color = 'rgba(16, 185, 129, 0.8)') {
-            toastText.innerText = text;
-            toastMessage.style.borderColor = color;
-            toastMessage.style.opacity = '1';
-            
-            setTimeout(() => {
-                toastMessage.style.opacity = '0';
-            }, 1800);
-        }
-
-        // Detectar gestos básicos calculando distancias euclidianas relativas entre keypoints
-        function detectGesture(keypoints) {
-            // Keypoints de interés
-            const thumbTip = keypoints[4];
-            const indexTip = keypoints[8];
-            const middleTip = keypoints[12];
-            const ringTip = keypoints[16];
-            const pinkyTip = keypoints[20];
-            const wrist = keypoints[0];
-
-            const distance = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
-
-            // Calcular distancia del pinchazo (pulgar e índice)
-            const pinchDist = distance(thumbTip, indexTip);
-            
-            // Distancias de dedos extendidos con respecto a la muñeca
-            const dThumb = distance(thumbTip, wrist);
-            const dIndex = distance(indexTip, wrist);
-            const dMiddle = distance(middleTip, wrist);
-            const dRing = distance(ringTip, wrist);
-            const dPinky = distance(pinkyTip, wrist);
-
-            // Un dedo se considera doblado si está cerca de la muñeca en comparación con el valor promedio
-            const baseRef = distance(keypoints[9], wrist); // Referencia centro de palma
-
-            const isIndexExtended = dIndex > baseRef * 1.1;
-            const isMiddleExtended = dMiddle > baseRef * 1.1;
-            const isRingExtended = dRing > baseRef * 1.1;
-            const isPinkyExtended = dPinky > baseRef * 1.1;
-
-            if (pinchDist < 30) {
-                return 'PINCHAZO';
-            }
-            if (!isIndexExtended && !isMiddleExtended && !isRingExtended && !isPinkyExtended) {
-                return 'PUÑO';
-            }
-            if (isIndexExtended && isMiddleExtended && !isRingExtended && !isPinkyExtended) {
-                return 'VICTORIA';
-            }
-            if (isIndexExtended && !isMiddleExtended && !isRingExtended && isPinkyExtended) {
-                return 'ROCK';
-            }
-            if (isIndexExtended && isMiddleExtended && isRingExtended && isPinkyExtended) {
-                return 'MANO ABIERTA';
-            }
-            return 'RASTREANDO';
-        }
-
-        // Dibujar el esqueleto de la mano en el canvas de realidad aumentada
-        function drawHandSkeleton(hand) {
-            const keypoints = hand.keypoints;
-            const isLeft = hand.handedness === 'Left';
-            
-            // Paleta de colores futurista: Verde para la mano izquierda, Azul para la derecha
-            const colorPrimary = isLeft ? '#10B981' : '#3B82F6';
-            const colorSecondary = isLeft ? 'rgba(16, 185, 129, 0.4)' : 'rgba(59, 130, 246, 0.4)';
-            const colorGlow = isLeft ? 'rgba(16, 185, 129, 0.8)' : 'rgba(59, 130, 246, 0.8)';
-
-            // 1. Estructura de conexiones del esqueleto (MediaPipe Landmark Connections)
-            const connections = [
-                // Muñeca a base de dedos
-                [0, 1], [1, 2], [2, 3], [3, 4], // Pulgar
-                [0, 5], [5, 6], [6, 7], [7, 8], // Índice
-                [9, 10], [10, 11], [11, 12],     // Medio
-                [13, 14], [14, 15], [15, 16],    // Anular
-                [0, 17], [17, 18], [18, 19], [19, 20], // Meñique
-                // Nodos entre bases de dedos
-                [5, 9], [9, 13], [13, 17]
-            ];
-
-            // Dibujar líneas cibernéticas de conexión
-            if (config.drawSkeleton) {
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = colorSecondary;
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = colorPrimary;
-
-                for (let [p1, p2] of connections) {
-                    const kp1 = keypoints[p1];
-                    const kp2 = keypoints[p2];
-                    if (kp1 && kp2) {
-                        ctx.beginPath();
-                        ctx.moveTo(kp1.x, kp1.y);
-                        ctx.lineTo(kp2.x, kp2.y);
-                        ctx.stroke();
-                    }
-                }
-                ctx.shadowBlur = 0; // Resetear sombra para optimizar rendimiento
-            }
-
-            // 2. Dibujar nodos individuales (Puntos clave)
-            keypoints.forEach((kp, idx) => {
-                // Dibujar solo nodos del esqueleto principal
-                if (config.drawSkeleton) {
-                    ctx.beginPath();
-                    ctx.arc(kp.x, kp.y, idx === 0 ? 8 : 4, 0, Math.PI * 2);
-                    ctx.fillStyle = idx === 0 || idx % 4 === 0 ? '#FFFFFF' : colorPrimary;
-                    ctx.fill();
-                    
-                    // Círculos de interfaz futurista alrededor de las yemas
-                    if (idx % 4 === 0 && idx !== 0) {
-                        ctx.strokeStyle = colorGlow;
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.arc(kp.x, kp.y, 9, 0, Math.PI * 2);
-                        ctx.stroke();
-                    }
-                }
-
-                // 3. Emitir rastro de partículas desde las puntas de los dedos
-                if (idx % 4 === 0 && idx !== 0) {
-                    createLaserSparks(kp.x, kp.y, colorPrimary);
-                }
-            });
-
-            // 4. Dibujar caja HUD flotante con metadatos
-            const wrist = keypoints[0];
-            const gesture = detectGesture(keypoints);
-            
-            // Gestionar eventos de voz o tonos al cambiar de gestos detectados
-            if (gestureStates[hand.handedness] !== gesture) {
-                gestureStates[hand.handedness] = gesture;
-                addLog(`Mano ${isLeft ? 'IZQUIERDA' : 'DERECHA'}: Gesto [${gesture}]`, isLeft ? 'text-emerald-400' : 'text-blue-400');
-                
-                // Beep sonoro holográfico diferenciado por gesto y mano
-                const freq = isLeft ? (gesture === 'PUÑO' ? 300 : 600) : (gesture === 'PUÑO' ? 350 : 700);
-                playSynthBeep(freq, 'sine', 0.15, 0.1);
-                showNotification(`MANO ${isLeft ? 'IZQ' : 'DER'}: ${gesture}`, colorPrimary);
-            }
-
-            // Dibujar etiquetas flotantes HUD
-            ctx.fillStyle = "rgba(17, 24, 39, 0.85)";
-            ctx.strokeStyle = colorPrimary;
-            ctx.lineWidth = 1.5;
-            
-            const labelX = wrist.x - 50;
-            const labelY = wrist.y + 25;
-            
-            ctx.beginPath();
-            ctx.roundRect(labelX, labelY, 110, 42, 6);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.fillStyle = "#FFFFFF";
-            ctx.font = "bold 9px 'Orbitron', monospace";
-            ctx.fillText(`ID: ${isLeft ? 'IZQ (EMERALD)' : 'DER (SAPPHIRE)'}`, labelX + 8, labelY + 16);
-            
-            ctx.fillStyle = colorPrimary;
-            ctx.font = "bold 11px 'Orbitron', monospace";
-            ctx.fillText(gesture, labelX + 8, labelY + 32);
-        }
-
-        // Dibujar un puente de rayos de energía cuando ambas manos son detectadas
-        function drawInterHandBridge(hands) {
-            if (hands.length < 2 || !config.drawBridge) return;
-            
-            const wrist1 = hands[0].keypoints[0];
-            const wrist2 = hands[1].keypoints[0];
-
-            if (wrist1 && wrist2) {
-                // Línea de rayo holográfico
-                ctx.save();
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = "#10B981";
-                
-                // Efecto de arco eléctrico irregular
-                ctx.beginPath();
-                ctx.moveTo(wrist1.x, wrist1.y);
-                
-                const steps = 6;
-                for (let i = 1; i <= steps; i++) {
-                    const ratio = i / steps;
-                    const nextX = wrist1.x + (wrist2.x - wrist1.x) * ratio;
-                    const nextY = wrist1.y + (wrist2.y - wrist1.y) * ratio;
-                    
-                    if (i < steps) {
-                        const jitterX = (Math.random() - 0.5) * 16;
-                        const jitterY = (Math.random() - 0.5) * 16;
-                        ctx.lineTo(nextX + jitterX, nextY + jitterY);
-                    } else {
-                        ctx.lineTo(nextX, nextY);
-                    }
-                }
-                ctx.stroke();
-                
-                // Texto de telemetría de proximidad
-                const midX = (wrist1.x + wrist2.x) / 2;
-                const midY = (wrist1.y + wrist2.y) / 2;
-                const distance = Math.round(Math.hypot(wrist1.x - wrist2.x, wrist1.y - wrist2.y));
-
-                ctx.restore();
-                
-                ctx.fillStyle = "rgba(17, 24, 39, 0.9)";
-                ctx.strokeStyle = "#FFFFFF";
-                ctx.beginPath();
-                ctx.roundRect(midX - 55, midY - 12, 110, 24, 4);
-                ctx.fill();
-                ctx.stroke();
-                
-                ctx.fillStyle = "#10B981";
-                ctx.font = "bold 9px 'Orbitron', monospace";
-                ctx.textAlign = "center";
-                ctx.fillText(`DIST: ${distance}px`, midX, midY + 4);
-                ctx.textAlign = "start"; // Reset
-            }
-        }
-
-        // El bucle principal de ejecución de AR en tiempo real
-        async function runARLoop() {
-            if (!isPlaying) return;
-
-            // Calcular rendimiento FPS
-            const now = performance.now();
-            fps = Math.round(1000 / (now - lastFrameTime));
-            lastFrameTime = now;
-            fpsCounter.innerText = fps < 10 ? `0${fps}` : fps;
-
-            // Asegurar que el canvas coincida con el espacio físico del video contenedor
-            if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-            }
-
-            // 1. Dibujar el video espejo original de fondo en el canvas
-            ctx.save();
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            ctx.restore();
-
-            // 2. Ejecutar estimación de manos en TensorFlow
-            try {
-                const hands = await detector.estimateHands(video, {
-                    flipHorizontal: false // Ya se espeja el canvas globalmente en CSS
-                });
-
-                // 3. Procesar esqueleto de manos detectadas (máx 2)
-                hands.forEach(hand => {
-                    drawHandSkeleton(hand);
-                });
-
-                // 4. Si hay dos manos, trazar puente cuántico de AR
-                drawInterHandBridge(hands);
-
-            } catch (err) {
-                console.error("Error estimando posturas de manos", err);
-            }
-
-            // 5. Dibujar y reciclar partículas físicas activas
-            particles.forEach((p, idx) => {
-                p.update();
-                p.draw();
-                if (p.life <= 0) particles.splice(idx, 1);
-            });
-
-            // Re-ejecutar bucle de manera óptima según refresco de pantalla
-            requestAnimationFrame(runARLoop);
-        }
-
-        // Setup de la inicialización de la app al cargar el documento
-        window.addEventListener('load', async () => {
-            setupUIControls();
-            
-            // Asignar evento click al botón de rotación de cámara
-            btnSwitchCam.addEventListener('click', switchCamera);
-            
-            try {
-                await setupCamera();
-                addLog("Cámara lista y transmitiendo.", "text-emerald-400");
-                await loadHandPoseDetector();
-            } catch (e) {
-                addLog("El sistema falló al cargar recursos de cámara.", "text-red-500");
-            }
-        });
-
-        // Evento click al iniciar la experiencia
-        btnStart.addEventListener('click', () => {
-            if (!modelLoaded) return;
-            
-            // Iniciar Web Audio para interacciones
-            initAudio();
-            playSynthBeep(880, 'sine', 0.25, 0.2);
-            
-            onboardingScreen.classList.add('opacity-0', 'pointer-events-none');
-            isPlaying = true;
-            video.play();
-            
-            addLog("La experiencia de realidad aumentada ha comenzado.", "text-emerald-400 font-bold");
-            showNotification("CONEXIÓN AR COMPLETADA", "rgba(16, 185, 129, 0.8)");
-            
-            runARLoop();
-        });
-    </script>
+
+<body>
+
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas"></canvas>
+
+<script type="module">
+
+import * as tf from "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js";
+
+import * as handPoseDetection from "https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection";
+
+import "https://cdn.jsdelivr.net/npm/@mediapipe/hands";
+
+const video=document.getElementById("video");
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
+
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+
+const stream=await navigator.mediaDevices.getUserMedia({
+
+video:{
+facingMode:"environment"
+}
+
+});
+
+video.srcObject=stream;
+
+await new Promise(r=>video.onloadedmetadata=r);
+
+await tf.ready();
+
+const detector=await handPoseDetection.createDetector(
+
+handPoseDetection.SupportedModels.MediaPipeHands,
+
+{
+
+runtime:"mediapipe",
+
+modelType:"full",
+
+solutionPath:"https://cdn.jsdelivr.net/npm/@mediapipe/hands"
+
+}
+
+);
+
+async function render(){
+
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+const hands=await detector.estimateHands(video);
+
+ctx.drawImage(video,0,0,canvas.width,canvas.height);
+
+ctx.fillStyle="lime";
+
+ctx.strokeStyle="cyan";
+
+ctx.lineWidth=3;
+
+for(const hand of hands){
+
+for(const point of hand.keypoints){
+
+const x=(point.x/video.videoWidth)*canvas.width;
+
+const y=(point.y/video.videoHeight)*canvas.height;
+
+ctx.beginPath();
+
+ctx.arc(canvas.width-x,y,6,0,Math.PI*2);
+
+ctx.fill();
+
+}
+
+}
+
+requestAnimationFrame(render);
+
+}
+
+render();
+
+</script>
+
 </body>
 </html>
